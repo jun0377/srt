@@ -134,6 +134,11 @@ typedef int32_t SRTSOCKET;
 // the "socket group". Most of the API functions should work
 // transparently with the socket descriptor designating a single
 // socket or a socket group.
+// 1. 最高位（第31位，实际上是符号位）被保留未使用。这是为了确保那些错误地检查值是否小于0（而不是检查是否等于-1）的代码仍然能够按预期工作。
+// 在大多数系统中，整数类型的最高位用作符号位，以表示数的正负。在这里，即使这个位未被用作符号位，保留它也能防止错误的检查条件导致问题
+// 2. 第30位被保留用于标记“套接字组”（socket group）。
+// 这意味着，这个位被用来指示一个套接字描述符是否代表一个单一的套接字或者一个套接字组。
+// 在这种情况下，API函数被设计为可以透明地处理这两种情况，无论套接字描述符指向的是单个套接字还是套接字组
 static const int32_t SRTGROUP_MASK = (1 << 30);
 
 #ifdef _WIN32
@@ -150,6 +155,7 @@ typedef SYSSOCKET UDPSOCKET;
 
 
 // Values returned by srt_getsockstate()
+// socket状态
 typedef enum SRT_SOCKSTATUS {
    SRTS_INIT = 1,
    SRTS_OPENED,

@@ -414,9 +414,10 @@ struct DynamicStruct
 };
 
 
-/// Fixed-size array template class.
+/// Fixed-size array template class.　固定大小的数组模板类
 namespace srt {
 
+// 固定大小的数组模板类
 template <class T>
 class FixedArray
 {
@@ -482,6 +483,7 @@ private:
     FixedArray(const FixedArray<T>& );
     FixedArray<T>& operator=(const FixedArray<T>&);
 
+    // 抛出异常：索引超出范围
     void throw_invalid_index(int i) const
     {
         std::stringstream ss;

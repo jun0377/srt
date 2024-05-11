@@ -112,7 +112,7 @@ namespace srt
 // This is actually useless, unless you'd use a DIRECT C++ API,
 // however there's no such API so far. The current C++ API for UDT/SRT
 // is predicted to NEVER LET ANY EXCEPTION out of implementation,
-// so it's useless to catch this exception anyway.
+// so it's useless to catch this exception anyway. 
 
 class CUDTException: public std::exception
 {

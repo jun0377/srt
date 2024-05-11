@@ -292,6 +292,7 @@ void srt::PacketFilter::globalInit()
     // as builtin. This will disallow users to register
     // external filters with the same name.
 
+    // 添加一个FEC数据包过滤器
     filters["fec"] = new Creator<FECFilterBuiltin>;
     builtin_filters.insert("fec");
 }

@@ -238,8 +238,10 @@ string srt::CUDTUnited::CONID(SRTSOCKET sock)
 
 int srt::CUDTUnited::startup()
 {
+    // 获取锁
     ScopedLock gcinit(m_InitLock);
 
+    // 如果已经初始化过，则直接返回
     if (m_iInstanceCount++ > 0)
         return 1;
 
@@ -253,20 +255,27 @@ int srt::CUDTUnited::startup()
         throw CUDTException(MJ_SETUP, MN_NONE, WSAGetLastError());
 #endif
 
+    // Crypto加密
     CCryptoControl::globalInit();
 
+    // 数据包过滤
     PacketFilter::globalInit();
 
+    // 如果资源回收线程正在执行，立即返回
     if (m_bGCStatus)
         return 1;
 
+    // 原子变量，什么作用？
     m_bClosing = false;
 
+    // 创建资源回收线程
     if (!StartThread(m_GCThread, garbageCollect, this, "SRT:GC"))
         return -1;
 
+    // 资源回收线程运行标识
     m_bGCStatus = true;
 
+    // 向日志中输出当前时间
     HLOGC(inlog.Debug, log << "SRT Clock Type: " << SRT_SYNC_CLOCK_STR);
 
     return 0;

@@ -77,6 +77,7 @@ namespace srt
 class CUDT;
 
 /// @brief Class CUDTSocket is a control layer on top of the CUDT core functionality layer.
+// 类CUDTSocket是在CUDT核心功能层之上的控制层
 /// CUDTSocket owns CUDT.
 class CUDTSocket
 {
@@ -123,6 +124,7 @@ public:
 
     void construct();
 
+    // SRT属性访问控制
     SRT_ATTR_GUARDED_BY(m_ControlLock)
     sync::atomic<SRT_SOCKSTATUS> m_Status; //< current socket state
 

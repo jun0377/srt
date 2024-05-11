@@ -56,6 +56,7 @@
 #include "utilities.h"
 #include "srt_attr_defs.h"
 
+// 本文件通常包含了一些与同步相关的功能和宏定义，这些同步机制用于在多线程环境中控制对共享资源的访问，确保数据的一致性和线程安全
 
 namespace srt
 {
@@ -344,12 +345,16 @@ private:
 };
 
 /// A pthread version of std::chrono::scoped_lock<mutex> (or lock_guard for C++11)
+// 自动管理互斥锁的机制
 class SRT_ATTR_SCOPED_CAPABILITY ScopedLock
 {
 public:
+    // 获取资源的标识
     SRT_ATTR_ACQUIRE(m)
+    // explicit 用来避免隐式类型转换
     explicit ScopedLock(Mutex& m);
 
+    // 释放资源的标识
     SRT_ATTR_RELEASE()
     ~ScopedLock();
 

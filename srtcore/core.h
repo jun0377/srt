@@ -165,6 +165,10 @@ class CUDTGroup;
 // separating the internal abnormal path management (exceptions) from the
 // API (return values), through CUDTUnited, this class may become in future
 // an officially exposed C++ API.
+// 的代码重构计划的描述
+// 这个注释提到了CUDT类和CUDTSocket类应该合并，因为它们之间没有理由分开管理。
+// 注释还提到，通过CUDTUnited类，可以将内部的异常处理路径（异常）与API（返回值）分离开来。
+// 这样做的目的是为了将来可能将这个类作为一个官方公开的C++ API。
 class CUDT
 {
     friend class CUDTSocket;

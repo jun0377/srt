@@ -326,6 +326,8 @@ int srt::sync::genRandomInt(int minVal, int maxVal)
     // Thread-local storage could be used here instead to store the seed / random device.
     // However the generator is not used often (Initial Socket ID, Initial sequence number, FileCC),
     // so sharing a single seed among threads should not impact the performance.
+    // Meyer’s singleton 是一种在 C++ 中实现单例的流行方法，它利用了局部静态变量的特性来保证只有一个实例存在
+    // 这种方法在 C++11 及以上标准中是线程安全的，但在 C++03 中不是线程安全的
     static sync::Mutex s_mtxRandomDevice;
     sync::ScopedLock lck(s_mtxRandomDevice);
 #if HAVE_CXX11
