@@ -76,32 +76,31 @@ namespace srt
 
 class CUDT;
 
-/// @brief Class CUDTSocket is a control layer on top of the CUDT core functionality layer.
-// 类CUDTSocket是在CUDT核心功能层之上的控制层
-/// CUDTSocket owns CUDT.
+// class CUDTSocket封装了 SRT 连接的核心操作和功能
+// 这个类的作用主要包括管理 SRT 连接、发送和接收数据、设置和获取连接参数、以及处理连接中的各种事件和状态
 class CUDTSocket
 {
 public:
-    CUDTSocket()
-        : m_Status(SRTS_INIT)
-        , m_SocketID(0)
-        , m_ListenSocket(0)
-        , m_PeerID(0)
+    CUDTSocket()                    // 默认构造函数
+        : m_Status(SRTS_INIT)       // 初始化状态为初始状态
+        , m_SocketID(0)             // 初始化套接字ID为0
+        , m_ListenSocket(0)         // 初始化监听套接字为0
+        , m_PeerID(0)               // 初始化对端ID为0
 #if ENABLE_BONDING
-        , m_GroupMemberData()
-        , m_GroupOf()
+        , m_GroupMemberData()       // 如果启用绑定，初始化组成员数据
+        , m_GroupOf()               // 初始化所属组
 #endif
-        , m_iISN(0)
-        , m_UDT(this)
-        , m_AcceptCond()
-        , m_AcceptLock()
-        , m_uiBackLog(0)
-        , m_iMuxID(-1)
+        , m_iISN(0)                 // 初始化初始序列号为0
+        , m_UDT(this)               // 初始化UDT实例
+        , m_AcceptCond()            // 初始化接受条件
+        , m_AcceptLock()            // 初始化接受锁
+        , m_uiBackLog(0)            // 初始化备份队列长度为0
+        , m_iMuxID(-1)              // 初始化多路复用ID为-1
     {
-        construct();
+        construct();                // 调用构造函数完成进一步初始化
     }
 
-    CUDTSocket(const CUDTSocket& ancestor)
+    CUDTSocket(const CUDTSocket& ancestor)      // 拷贝构造函数
         : m_Status(SRTS_INIT)
         , m_SocketID(0)
         , m_ListenSocket(0)
@@ -124,8 +123,9 @@ public:
 
     void construct();
 
-    // SRT属性访问控制
+    // 用于指示特定的变量受某个锁的保护，给静态代码分析工具使用
     SRT_ATTR_GUARDED_BY(m_ControlLock)
+    // 当前套接字状态，
     sync::atomic<SRT_SOCKSTATUS> m_Status; //< current socket state
 
     /// Time when the socket is closed.
@@ -133,31 +133,43 @@ public:
     /// of sockets in order to prevent other methods from accessing invalid address.
     /// A timer is started and the socket will be removed after approximately
     /// 1 second (see CUDTUnited::checkBrokenSockets()).
+    /*  当套接字被关闭时，为了防止其他方法仍在使用该套接字，它不会立即从套接字列表中移除。 
+        会启动一个计时器，在大约1秒后（请参阅 CUDTUnited::checkBrokenSockets() 函数）才会真正删除该套接字
+    */
     sync::steady_clock::time_point m_tsClosureTimeStamp;
 
+    // 本地地址，包括IP和端口号
     sockaddr_any m_SelfAddr; //< local address of the socket
+    // 对端地址，包括IP和端口号
     sockaddr_any m_PeerAddr; //< peer address of the socket
 
+    // sockfd 
     SRTSOCKET m_SocketID;     //< socket ID
+    // 监听套接字，0表示是一个非监听套接字
     SRTSOCKET m_ListenSocket; //< ID of the listener socket; 0 means this is an independent socket
-
+    // 对端套接字
     SRTSOCKET m_PeerID; //< peer socket ID
 #if ENABLE_BONDING
     groups::SocketData* m_GroupMemberData; //< Pointer to group member data, or NULL if not a group member
     CUDTGroup*          m_GroupOf;         //< Group this socket is a member of, or NULL if it isn't
 #endif
 
+    // 初始序列号，用于区分来自相同IP地址和端口的不同连接
     int32_t m_iISN; //< initial sequence number, used to tell different connection from same IP:port
 
 private:
+    // 内部SRT套接字逻辑
     CUDT m_UDT; //< internal SRT socket logic
 
 public:
+    // 等待accept的套接字集合
     std::set<SRTSOCKET> m_QueuedSockets; //< set of connections waiting for accept()
 
+    // 下面这两个变量用来实现同步操作
     sync::Condition m_AcceptCond; //< used to block "accept" call
     sync::Mutex     m_AcceptLock; //< mutex associated to m_AcceptCond
 
+    // 队列中等待 accept() 处理的最大连接数
     unsigned int m_uiBackLog; //< maximum number of connections in queue
 
     // XXX A refactoring might be needed here.
@@ -173,26 +185,24 @@ public:
     // socket.
     int m_iMuxID; //< multiplexer ID
 
+    // 同步互斥锁：用于在执行控制API（如 bind、listen 和 connect）时独占性地锁定该套接字
     sync::Mutex m_ControlLock; //< lock this socket exclusively for control APIs: bind/listen/connect
 
-    CUDT&       core() { return m_UDT; }
-    const CUDT& core() const { return m_UDT; }
+    CUDT&       core() { return m_UDT; }    // 返回CUDT对象的引用。这允许调用者直接使用CUDT对象
+    const CUDT& core() const { return m_UDT; }// 返回CUDT对象的常引用，不允许调用者修改CUDT对象
 
+    // 静态方法：返回一个64位整数，该整数由SRT socket ID和序列号组合而成
     static int64_t getPeerSpec(SRTSOCKET id, int32_t isn) { return (int64_t(id) << 30) + isn; }
+    
     int64_t        getPeerSpec() { return getPeerSpec(m_PeerID, m_iISN); }
 
+    // 获取sockfd状态
     SRT_SOCKSTATUS getStatus();
 
-    /// This function shall be called always wherever
-    /// you'd like to call cudtsocket->m_pUDT->close(),
-    /// from within the GC thread only (that is, only when
-    /// the socket should be no longer visible in the
-    /// connection, including for sending remaining data).
+    // 用于中断或关闭SRT连接，线程安全
     void breakSocket_LOCKED();
 
-    /// This makes the socket no longer capable of performing any transmission
-    /// operation, but continues to be responsive in the connection in order
-    /// to finish sending the data that were scheduled for sending so far.
+    // 将 SRT 套接字标记为已关闭状态，以便释放相关资源并防止之后的操作使用该套接字
     void setClosed();
 
     // This is necessary to be called from the group before the group clears
@@ -204,14 +214,15 @@ public:
         core().m_bClosing = true;
     }
 
-    /// This does the same as setClosed, plus sets the m_bBroken to true.
-    /// Such a socket can still be read from so that remaining data from
-    /// the receiver buffer can be read, but no longer sends anything.
+    /// 这个操作与setClosed相同，另外会将m_bBroken设置为true。
+    /// 在这种状态下，套接字仍然可以被读取，以便读取接收缓冲区中剩余的数据，
+    /// 但不再发送任何新数据。
     void setBrokenClosed();
     void removeFromGroup(bool broken);
 
     // Instrumentally used by select() and also required for non-blocking
     // mode check in groups
+    // 用户select()函数或非阻塞sockfd
     bool readReady();
     bool writeReady() const;
     bool broken() const;
@@ -247,6 +258,7 @@ public:
 
     /// initialize the UDT library.
     /// @return 0 if success, otherwise -1 is returned.
+    // 初始化UDT库
     int startup();
 
     /// release the UDT library.
@@ -386,6 +398,7 @@ private:
     SRTSOCKET generateSocketID(bool group = false);
 
 private:
+    // 存储所有socket结构体的MAP
     typedef std::map<SRTSOCKET, CUDTSocket*> sockets_t; // stores all the socket structures
     sockets_t                                m_Sockets;
 
@@ -394,24 +407,32 @@ private:
     groups_t                                m_Groups;
 #endif
 
+    // 用于同步UDT API
     sync::Mutex m_GlobControlLock; // used to synchronize UDT API
-
+    // 用于同步sockfd生成
     sync::Mutex m_IDLock; // used to synchronize ID generation
 
+    // 用于生成一个新的socketfd的种子
     SRTSOCKET m_SocketIDGenerator;      // seed to generate a new unique socket ID
+    // 用于记录第一个生成的socket id
     SRTSOCKET m_SocketIDGenerator_init; // Keeps track of the very first one
 
+    // 用于记录来自对等方的套接字，以避免重复的连接请求，int64_t = (套接字ID << 30) + ISN
     std::map<int64_t, std::set<SRTSOCKET> >
         m_PeerRec; // record sockets from peers to avoid repeated connection request, int64_t = (socker_id << 30) + isn
 
 private:
     friend struct FLookupSocketWithEvent_LOCKED;
 
+    // 给定套接字标识符，查找并返回指向指定套接字对象的指针
     CUDTSocket* locateSocket(SRTSOCKET u, ErrorHandling erh = ERH_RETURN);
     // This function does the same as locateSocket, except that:
     // - lock on m_GlobControlLock is expected (so that you don't unlock between finding and using)
     // - only return NULL if not found
+    // - 在查找和实际使用套接字之间，不会发生解锁操作，从而确保了操作的原子性和安全性
+    // -  如果没有找到指定的套接字，此函数仅返回NULL
     CUDTSocket* locateSocket_LOCKED(SRTSOCKET u);
+    // 
     CUDTSocket* locatePeer(const sockaddr_any& peer, const SRTSOCKET id, int32_t isn);
 
 #if ENABLE_BONDING
@@ -462,7 +483,9 @@ private:
         const sockaddr_any& reqaddr, const CSrtMuxerConfig& cfgSocket);
 
 private:
+    // UDP复用器map
     std::map<int, CMultiplexer> m_mMultiplexer; // UDP multiplexer
+    // UDP复用器锁
     sync::Mutex                 m_MultiplexerLock;
 
 private:

@@ -360,14 +360,17 @@ int parse_args(LiveTransmitConfig &cfg, int argc, char** argv)
 
 int main(int argc, char** argv)
 {
+    // 初始化SRT库以管理资源，只是创建了一个资源回收线程
     srt_startup();
     // This is mainly required on Windows to initialize the network system,
     // for a case when the instance would use UDP. SRT does it on its own, independently.
+    // 仅在windows上需要执行，初始化网络系统
     if (!SysInitializeNetwork())
         throw std::runtime_error("Can't initialize network!");
 
     // Symmetrically, this does a cleanup; put into a local destructor to ensure that
     // it's called regardless of how this function returns.
+    // 使用下面这种写法，保证了无论程序是异常终止还是正常结束，NetworkCleanup都会被调用
     struct NetworkCleanup
     {
         ~NetworkCleanup()
@@ -377,7 +380,7 @@ int main(int argc, char** argv)
         }
     } cleanupobj;
 
-
+    // 获取命令行参数
     LiveTransmitConfig cfg;
     const int parse_ret = parse_args(cfg, argc, argv);
     if (parse_ret != 0)
@@ -386,6 +389,7 @@ int main(int argc, char** argv)
     //
     // Set global config variables
     //
+    // 根据解析的参数应用全局配置变量
     if (cfg.chunk_size > 0)
         transmit_chunk_size = cfg.chunk_size;
     transmit_stats_writer = SrtStatsWriterFactory(cfg.stats_pf);
@@ -396,6 +400,7 @@ int main(int argc, char** argv)
     //
     // Set SRT log levels and functional areas
     //
+    // 根据用户配置设置SRT日志级别和功能区域
     srt_setloglevel(cfg.loglevel);
     if (!cfg.logfas.empty())
     {
@@ -404,13 +409,12 @@ int main(int argc, char** argv)
             srt_addlogfa(*i);
     }
 
-    //
-    // SRT log handler
-    //
+    // 如果启用内部日志，配置自定义日志处理器；或根据指定的文件名将日志写入文件
     std::ofstream logfile_stream; // leave unused if not set
     char NAME[] = "SRTLIB";
     if (cfg.log_internal)
     {
+        // 配置内部日志选项
         srt_setlogflags(0
             | SRT_LOGF_DISABLE_TIME
             | SRT_LOGF_DISABLE_SEVERITY
@@ -421,6 +425,7 @@ int main(int argc, char** argv)
     }
     else if (!cfg.logfile.empty())
     {
+        // 打开日志文件并设置日志流
         logfile_stream.open(cfg.logfile.c_str());
         if (!logfile_stream)
         {
@@ -432,10 +437,7 @@ int main(int argc, char** argv)
         }
     }
 
-
-    //
-    // SRT stats output
-    //
+    // 如果指定了状态输出文件，则打开；否则使用stdout
     std::ofstream logfile_stats; // leave unused if not set
     if (cfg.stats_out != "")
     {

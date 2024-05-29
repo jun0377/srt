@@ -159,18 +159,12 @@ class CUDTSocket;
 class CUDTGroup;
 #endif
 
-// XXX REFACTOR: The 'CUDT' class is to be merged with 'CUDTSocket'.
-// There's no reason for separating them, there's no case of having them
-// anyhow managed separately. After this is done, with a small help with
-// separating the internal abnormal path management (exceptions) from the
-// API (return values), through CUDTUnited, this class may become in future
-// an officially exposed C++ API.
-// 的代码重构计划的描述
-// 这个注释提到了CUDT类和CUDTSocket类应该合并，因为它们之间没有理由分开管理。
-// 注释还提到，通过CUDTUnited类，可以将内部的异常处理路径（异常）与API（返回值）分离开来。
-// 这样做的目的是为了将来可能将这个类作为一个官方公开的C++ API。
+// CUDT : Class for UDP-based Data Transfer Protocol
+// class CUDT 负责管理SRT连接，包括建立、维护、传输数据以及关闭连接等操作
+// 封装了 SRT 协议的主要功能，实现了可靠、低延迟的音视频数据传输
 class CUDT
 {
+    // 管理SRT连接、发送和接收数据、设置和获取连接参数、以及处理连接中的各种事件和状态
     friend class CUDTSocket;
     friend class CUDTUnited;
     friend class CCC;

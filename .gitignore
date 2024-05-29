@@ -12,6 +12,11 @@ srt-tunnel
 srt.pc
 version.h
 
+install_manifest.txt
+libSRT.sln
+libSRT.vcxproj
+libSRT.vcxproj.filters
+libSRT.vcxproj.user
 
 # Prerequisites
 *.d

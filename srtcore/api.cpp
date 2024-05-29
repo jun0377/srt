@@ -283,7 +283,7 @@ int srt::CUDTUnited::startup()
 
 int srt::CUDTUnited::cleanup()
 {
-    // IMPORTANT!!!
+    // IMPORTANT!!!　这个函数中，不能有任何日志相关的操作
     // In this function there must be NO LOGGING AT ALL.  This function may
     // potentially be called from within the global program destructor, and
     // therefore some of the facilities used by the logging system - including
@@ -291,6 +291,7 @@ int srt::CUDTUnited::cleanup()
     // stream that the user's app has bound to it, and which got destroyed
     // together with already exited main() - may be already deleted when
     // executing this procedure.
+    // 初始化锁
     ScopedLock gcinit(m_InitLock);
 
     if (--m_iInstanceCount > 0)

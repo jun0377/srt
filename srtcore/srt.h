@@ -28,6 +28,9 @@ written by
       #define SRT_API
    #endif
 #else
+    // __attribute__ ((visibility("default"))) 属性的作用是控制符号的可见性
+    // visibility("default")：设置了该属性的符号将对所有链接到该库的模块可见。这是共享库的默认行为，意味着库中定义的函数和变量可以被其他模块使用
+    // 在这里只是标识SRT提供了对外的API接口
    #define SRT_API __attribute__ ((visibility("default")))
 #endif
 #endif

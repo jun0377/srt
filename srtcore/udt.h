@@ -150,6 +150,8 @@ typedef SRTSOCKET UDTSOCKET; //legacy alias
 
 namespace srt { class CUDTException; }
 
+// UDT（UDP-based Data Transfer Protocol）,基于UDP的数据传输协议
+// 它通过在用户空间实现一系列机制来提供可靠的数据传输，这些机制包括拥塞控制、流控制、数据重传等，使得 UDT 能够在高速网络和高带宽需求的应用中提供比 TCP 更好的性能
 namespace UDT
 {
 
