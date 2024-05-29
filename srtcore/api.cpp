@@ -241,7 +241,7 @@ int srt::CUDTUnited::startup()
     // 获取锁
     ScopedLock gcinit(m_InitLock);
 
-    // 如果已经初始化过，则直接返回
+    // 确保只有一个实例在运行
     if (m_iInstanceCount++ > 0)
         return 1;
 
@@ -261,11 +261,10 @@ int srt::CUDTUnited::startup()
     // 数据包过滤
     PacketFilter::globalInit();
 
-    // 如果资源回收线程正在执行，立即返回
+    // 如果资源回收线程正在执行，不允许创建新的实例，立即退出
     if (m_bGCStatus)
         return 1;
 
-    // 原子变量，什么作用？
     m_bClosing = false;
 
     // 创建资源回收线程

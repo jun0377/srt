@@ -345,7 +345,7 @@ private:
 };
 
 /// A pthread version of std::chrono::scoped_lock<mutex> (or lock_guard for C++11)
-// 自动管理互斥锁的机制
+// 自动管理互斥锁的机制: 实例化对象时自动获取锁，销毁对象时自动释放锁
 class SRT_ATTR_SCOPED_CAPABILITY ScopedLock
 {
 public:
@@ -819,6 +819,8 @@ namespace this_thread = std::this_thread;
 #else // pthreads wrapper version
 typedef CUDTException CThreadException;
 
+
+// 创建/管理/控制/销毁线程
 class CThread
 {
 public:
