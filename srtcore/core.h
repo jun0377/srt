@@ -166,8 +166,11 @@ class CUDT
 {
     // 管理SRT连接、发送和接收数据、设置和获取连接参数、以及处理连接中的各种事件和状态
     friend class CUDTSocket;
+    // 管理和操作SRT套接字
     friend class CUDTUnited;
+    // Q:这个类是干什么用的
     friend class CCC;
+    // Q:这个结构体找不到
     friend struct CUDTComp;
     friend class CCache<CInfoBlock>;
     friend class CRendezvousQueue;

@@ -218,9 +218,13 @@ public:
    }
 
 private:
+   // 双向链表
    std::list<T*> m_StorageList;
+   // 双线链表迭代器
    typedef typename std::list<T*>::iterator ItemPtr;
+   // 存储迭代器的链表-模拟哈希表
    typedef std::list<ItemPtr> ItemPtrList;
+   // 每个元素都是一个迭代器链表，用于解决哈希冲突
    std::vector<ItemPtrList> m_vHashPtr;
 
    int m_iMaxSize;
