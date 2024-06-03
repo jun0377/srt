@@ -53,17 +53,28 @@ void OnINT_ForceExit(int)
 }
 
 struct FileTransmitConfig
-{
+{   
+    // 一次读取数据的最大大小，默认为 1456 字节
     unsigned long chunk_size;
+    // 跳过输出文件刷新,什么意思
     bool skip_flushing;
+    // 静默模式（默认关闭）
     bool quiet = false;
+    // 日志级别
     srt_logging::LogLevel::type loglevel = srt_logging::LogLevel::error;
+    // 日志功能区,针对SRT协议不同部分或功能模块的日志
     set<srt_logging::LogFA> logfas;
+    // 输出日志文件
     string logfile;
+    // 带宽报告频率，以每多少个数据包报告一次
     int bw_report = 0;
+    // 状态报告频率，以每多少个数据包报告一次
     int stats_report = 0;
+    // 将统计信息输出到文件
     string stats_out;
+    // 统计信息的打印格式: CSV JSON ...
     SrtStatsPrintFormat stats_pf = SRTSTATS_PROFMAT_2COLS;
+    // 在状态报告中包含完整的计数器（打印总统计信息）
     bool full_stats = false;
 
     string source;
@@ -84,6 +95,19 @@ void PrintOptionHelp(const set<string> &opt_names, const string &value, const st
     if (!value.empty())
         cerr << ":" << value;
     cerr << "\t- " << desc << "\n";
+}
+
+static void printVector(const std::vector<std::string>& vec)
+{
+    std::cout << "[ ";
+    for(size_t i = 0; i < vec.size(); i++){
+        std::cout << vec[i];
+        if(i < vec.size() - 1){
+            std::cout << ", ";
+        }
+    }
+
+    std::cout << " ]";
 }
 
 
@@ -216,6 +240,17 @@ int parse_args(FileTransmitConfig &cfg, int argc, char** argv)
 
     cfg.source = params[""].at(0);
     cfg.target = params[""].at(1);
+
+
+    // 遍历map,输出所有的键值对
+    std::cout << "===================================" << std::endl;
+    for(const auto& pair : params){
+
+        std::cout << pair.first << " = ";
+        printVector(pair.second);
+        std::cout << std::endl;
+    }
+    std::cout << "===================================" << std::endl;
 
     return 0;
 }
@@ -673,7 +708,9 @@ bool Download(UriParser& srt_source_uri, UriParser& fileuri,
 
 int main(int argc, char** argv)
 {
+    // 初始化文件传输配置结构
     FileTransmitConfig cfg;
+    // 解析命令行参数
     const int parse_ret = parse_args(cfg, argc, argv);
     if (parse_ret != 0)
         return parse_ret == 1 ? EXIT_FAILURE : 0;
@@ -681,17 +718,25 @@ int main(int argc, char** argv)
     //
     // Set global config variables
     //
+    // 一次读取数据的最大大小
     if (cfg.chunk_size != SRT_LIVE_MAX_PLSIZE)
         transmit_chunk_size = cfg.chunk_size;
+
+    // 统计信息的打印格式-简单工厂模式的应用实例
     transmit_stats_writer = SrtStatsWriterFactory(cfg.stats_pf);
+    // 带宽报告频率，以每多少个数据包报告一次
     transmit_bw_report = cfg.bw_report;
+    // 状态报告频率，以每多少个数据包报告一次
     transmit_stats_report = cfg.stats_report;
+    // 在状态报告中包含完整的计数器（打印总统计信息）
     transmit_total_stats = cfg.full_stats;
 
     //
     // Set SRT log levels and functional areas
     //
+    // 设置日志等级
     srt_setloglevel(cfg.loglevel);
+    // 针对SRT协议不同部分或功能模块的日志
     for (set<srt_logging::LogFA>::iterator i = cfg.logfas.begin(); i != cfg.logfas.end(); ++i)
         srt_addlogfa(*i);
 

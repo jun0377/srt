@@ -313,6 +313,7 @@ public:
     }
 };
 
+// 哇塞！简单工厂模式的应用实例：根据传入的printformat参数动态地创建并返回一个SrtStatsWriter的子类实例
 shared_ptr<SrtStatsWriter> SrtStatsWriterFactory(SrtStatsPrintFormat printformat)
 {
     switch (printformat)
