@@ -77,7 +77,9 @@ struct FileTransmitConfig
     // 在状态报告中包含完整的计数器（打印总统计信息）
     bool full_stats = false;
 
+    // URI source
     string source;
+    // URI target
     string target;
 };
 
@@ -256,17 +258,21 @@ int parse_args(FileTransmitConfig &cfg, int argc, char** argv)
 }
 
 
+// 分离path中的路径名和文件名
 void ExtractPath(string path, string& w_dir, string& w_fname)
 {
     string directory = path;
     string filename = "";
 
+    // 获取path状态
     struct stat state;
     stat(path.c_str(), &state);
 
+    // 不是目录的情况
     if (!S_ISDIR(state.st_mode))
     {
         // Extract directory as a butlast part of path
+        // 提取目录
         size_t pos = path.find_last_of("/");
         if ( pos == string::npos )
         {
@@ -686,6 +692,7 @@ bool Upload(UriParser& srt_target_uri, UriParser& fileuri,
     return DoUpload(srt_target_uri, path, filename, cfg, out_stats);
 }
 
+// 从指定源URI下载数据到本地文件
 bool Download(UriParser& srt_source_uri, UriParser& fileuri,
               const FileTransmitConfig &cfg, std::ostream &out_stats)
 {
@@ -696,6 +703,7 @@ bool Download(UriParser& srt_source_uri, UriParser& fileuri,
     }
 
     string path = fileuri.path(), directory, filename;
+    // 分离path中的路径名和文件名
     ExtractPath(path, (directory), (filename));
     Verb() << "Extract path '" << path << "': directory=" << directory << " filename=" << filename;
 
@@ -746,6 +754,7 @@ int main(int argc, char** argv)
     std::ofstream logfile_stream; // leave unused if not set
     if (!cfg.logfile.empty())
     {
+        // 打开日志文件
         logfile_stream.open(cfg.logfile.c_str());
         if (!logfile_stream)
         {
@@ -753,6 +762,7 @@ int main(int argc, char** argv)
         }
         else
         {
+            // 设置日志流
             srt::setlogstream(logfile_stream);
         }
     }
@@ -775,14 +785,18 @@ int main(int argc, char** argv)
         g_stats_are_printed_to_stdout = true;
     }
 
+    // 状态信息输出到日志还是标准输出
     ostream &out_stats = logfile_stats.is_open() ? logfile_stats : cout;
 
     // File transmission code
 
+    // URI source and target
     UriParser us(cfg.source), ut(cfg.target);
 
+    // 命令行指定了-v参数时，才会输出下面这行日志
     Verb() << "SOURCE type=" << us.scheme() << ", TARGET type=" << ut.scheme();
 
+    // 进程终止的信号
     signal(SIGINT, OnINT_ForceExit);
     signal(SIGTERM, OnINT_ForceExit);
 

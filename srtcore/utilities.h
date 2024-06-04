@@ -1103,29 +1103,41 @@ public:
     int64_t overdrift() const { return m_qOverdrift; }
 };
 
+
+// 适配器模式的一种实现
+// 包装器，通过对map进行包装，允许对 std::map 中的键值对进行类似数组索引的访问
 template <class KeyType, class ValueType>
 struct MapProxy
 {
+    // 对 std::map 的引用，用于存储键值对
     std::map<KeyType, ValueType>& mp;
+    // 用于存储键的引用，作为访问键值对的索引
     const KeyType& key;
 
+    // 构造函数，接受一个 std::map 引用和一个键，并将它们存储在结构体的成员变量中
     MapProxy(std::map<KeyType, ValueType>& m, const KeyType& k): mp(m), key(k) {}
 
+    // 赋值运算符重载，允许将给定键的值设置为特定的值
     void operator=(const ValueType& val)
     {
         mp[key] = val;
     }
 
+    // 查找键值对的方法，返回给定键的迭代器
     typename std::map<KeyType, ValueType>::iterator find()
     {
         return mp.find(key);
     }
 
+    // 查找键值对的方法，返回给定键的常量迭代器
     typename std::map<KeyType, ValueType>::const_iterator find() const
     {
         return mp.find(key);
     }
 
+    // 类型转换运算符重载，将 MapProxy 对象转换为其值类型
+    // 注意：并不是()运算符重载
+    // 如果找到了对应的键值对，则返回该值；否则，返回一个默认值（在这里是空字符串）
     operator ValueType() const
     {
         typename std::map<KeyType, ValueType>::const_iterator p = find();
@@ -1134,6 +1146,8 @@ struct MapProxy
         return p->second;
     }
 
+
+    // 获取默认值的方法，返回给定键的值，如果不存在，则返回指定的默认值
     ValueType deflt(const ValueType& defval) const
     {
         typename std::map<KeyType, ValueType>::const_iterator p = find();
@@ -1142,6 +1156,8 @@ struct MapProxy
         return p->second;
     }
 
+
+    // 检查键是否存在
     bool exists() const
     {
         return find() != mp.end();

@@ -345,6 +345,9 @@ void srt_setloglevel(int ll)
     UDT::setloglevel(srt_logging::LogLevel::type(ll));
 }
 
+
+
+// 添加日志记录功能调用
 void srt_addlogfa(int fa)
 {
     UDT::addlogfa(srt_logging::LogFA(fa));

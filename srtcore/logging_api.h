@@ -58,6 +58,9 @@ struct LogFA
 private:
     int value;
 public:
+
+    // 定义了一个类型转换运算符，使得LogFA对象可以转换为int类型
+    // 注意：并不是重载了()运算符，写法完全不同
     operator int() const { return value; }
 
     LogFA(int v): value(v)
