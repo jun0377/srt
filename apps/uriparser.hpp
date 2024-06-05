@@ -21,6 +21,7 @@
 // UriParser
 //--
 
+// URI 解析器
 class UriParser
 {
 // Construction

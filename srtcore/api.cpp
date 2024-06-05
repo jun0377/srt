@@ -4032,6 +4032,7 @@ int srt::CUDT::selectEx(const vector<SRTSOCKET>& fds,
     }
 }
 
+// 创建epoll实例
 int srt::CUDT::epoll_create()
 {
     try

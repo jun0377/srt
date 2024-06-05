@@ -1160,16 +1160,24 @@ inline bool IsOutput<Target>() { return true; }
 template <class Base>
 extern unique_ptr<Base> CreateMedium(const string& uri)
 {
+    // 独占指针
     unique_ptr<Base> ptr;
 
+    // 创建 URI 解析器
     UriParser u(uri);
 
+
     int iport = 0;
+    // 根据解析出的不同类型，采取不同的处理逻辑。
     switch ( u.type() )
     {
     default:
         break; // do nothing, return nullptr
+
+    // file类型
     case UriParser::FILE:
+
+        // 参数校验,host应该是主机名
         if (u.host() == "con" || u.host() == "console")
         {
             if (IsOutput<Base>() && (
@@ -1180,6 +1188,8 @@ extern unique_ptr<Base> CreateMedium(const string& uri)
                 cerr << "ERROR: HINT: you can stream through a FIFO (named pipe)\n";
                 throw invalid_argument("incorrect parameter combination");
             }
+
+            // 独占指针指向一个新的对象
             ptr.reset(CreateConsole<Base>());
         }
 // Disable regular file support for the moment
@@ -1189,13 +1199,18 @@ extern unique_ptr<Base> CreateMedium(const string& uri)
 #endif
         break;
 
+    // SRT类型
     case UriParser::SRT:
+
         iport = atoi(u.port().c_str());
+        // 禁止使用1024以下的端口，即禁止使用知名端口
         if ( iport < 1024 )
         {
             cerr << "Port value invalid: " << iport << " - must be >=1024\n";
             throw invalid_argument("Invalid port number");
         }
+
+        // 独占指针指向一个指向一个新的对象, SRT对象
         ptr.reset( CreateSrt<Base>(u.host(), iport, u.parameters()) );
         break;
 
@@ -1238,6 +1253,7 @@ std::unique_ptr<Source> Source::Create(const std::string& url)
     return CreateMedium<Source>(url);
 }
 
+// 使用工厂方法来创建Target对象
 std::unique_ptr<Target> Target::Create(const std::string& url)
 {
     return CreateMedium<Target>(url);

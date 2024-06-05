@@ -45,6 +45,7 @@ written by
 
 using namespace std;
 
+//　用户中断传输线程
 static bool interrupt = false;
 void OnINT_ForceExit(int)
 {
@@ -317,8 +318,8 @@ bool DoUpload(UriParser& ut, string path, string filename,
               const FileTransmitConfig &cfg, std::ostream &out_stats)
 {
     bool result = false;
-    unique_ptr<Target> tar;
-    SRTSOCKET s = SRT_INVALID_SOCK;
+    unique_ptr<Target> tar;                     // 独占指针
+    SRTSOCKET s = SRT_INVALID_SOCK;             // SRT套接字
     bool connected = false;
     int pollid = -1;
 
@@ -329,6 +330,7 @@ bool DoUpload(UriParser& ut, string path, string filename,
         goto exit;
     }
 
+    // 创建epoll实例
     pollid = srt_epoll_create();
     if ( pollid < 0 )
     {
@@ -339,6 +341,7 @@ bool DoUpload(UriParser& ut, string path, string filename,
 
     while (!interrupt)
     {
+        // Target指针赋值
         if (!tar.get())
         {
             tar = Target::Create(ut.makeUri());
@@ -671,6 +674,7 @@ exit:
 bool Upload(UriParser& srt_target_uri, UriParser& fileuri,
             const FileTransmitConfig &cfg, std::ostream &out_stats)
 {
+    // 参数校验
     if ( fileuri.scheme() != "file" )
     {
         cerr << "Upload: source accepted only as a file\n";
@@ -679,6 +683,7 @@ bool Upload(UriParser& srt_target_uri, UriParser& fileuri,
     // fileuri is source-reading file
     // srt_target_uri is SRT target
 
+    // 提取源文件的路径，并分离出目录和文件名
     string path = fileuri.path();
     string directory, filename;
     ExtractPath(path, (directory), (filename));
@@ -687,8 +692,10 @@ bool Upload(UriParser& srt_target_uri, UriParser& fileuri,
     // Directory will be preserved.
 
     // Add some extra parameters.
+    // 设置目标URI的"transtype"参数为"file"，指示上传类型为文件
     srt_target_uri["transtype"] = "file";
 
+    // 开始上传
     return DoUpload(srt_target_uri, path, filename, cfg, out_stats);
 }
 
@@ -732,9 +739,9 @@ int main(int argc, char** argv)
 
     // 统计信息的打印格式-简单工厂模式的应用实例
     transmit_stats_writer = SrtStatsWriterFactory(cfg.stats_pf);
-    // 带宽报告频率，以每多少个数据包报告一次
+    // 带宽报告频率，每多少个数据包报告一次
     transmit_bw_report = cfg.bw_report;
-    // 状态报告频率，以每多少个数据包报告一次
+    // 状态报告频率，每多少个数据包报告一次
     transmit_stats_report = cfg.stats_report;
     // 在状态报告中包含完整的计数器（打印总统计信息）
     transmit_total_stats = cfg.full_stats;
@@ -802,6 +809,7 @@ int main(int argc, char** argv)
 
     try
     {
+        // 源是srt,目标是file，执行下载
         if (us.scheme() == "srt")
         {
             if (ut.scheme() != "file")
@@ -809,8 +817,10 @@ int main(int argc, char** argv)
                 cerr << "SRT to FILE should be specified\n";
                 return 1;
             }
+            // 下载
             Download(us, ut, cfg, out_stats);
         }
+        // 目标是srt,源是file，执行上传
         else if (ut.scheme() == "srt")
         {
             if (us.scheme() != "file")
@@ -818,6 +828,7 @@ int main(int argc, char** argv)
                 cerr << "FILE to SRT should be specified\n";
                 return 1;
             }
+            // 上传
             Upload(ut, us, cfg, out_stats);
         }
         else
