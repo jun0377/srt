@@ -31,53 +31,79 @@ struct TransmissionError: public std::runtime_error
     }
 };
 
+// SRT基础类，封装了SRT协议的通用功能和属性
 class SrtCommon
 {
 protected:
 
+    // 数据传输方向，true表示发送数据，false表示接收数据
     bool m_output_direction = false; //< Defines which of SND or RCV option variant should be used, also to set SRT_SENDER for output
+    // 发送/接收超时时间，发送时表示发送超时，接收时表示接收超时
     int m_timeout = 0; //< enforces using SRTO_SNDTIMEO or SRTO_RCVTIMEO, depending on @a m_output_direction
+    // TSBPD模式 Q:TSBPD模式是什么模式
     bool m_tsbpdmode = true;
+    // 发送使用的端口
     int m_outgoing_port = 0;
     string m_mode;
     string m_adapter;
+    // 存放URI中的选项
     map<string, string> m_options; // All other options, as provided in the URI
+    // 和对端建立连接使用的sockfd
     SRTSOCKET m_sock = SRT_INVALID_SOCK;
+    // 监听sockfd
     SRTSOCKET m_bindsock = SRT_INVALID_SOCK;
+    // 判断socket是否可用
     bool IsUsable() { SRT_SOCKSTATUS st = srt_getsockstate(m_sock); return st > SRTS_INIT && st < SRTS_BROKEN; }
+    // 判断socket是否已断开
     bool IsBroken() { return srt_getsockstate(m_sock) > SRTS_CONNECTED; }
 
 public:
+    // 初始化参数
     void InitParameters(string host, map<string,string> par);
+    // 准备监听
+
     void PrepareListener(string host, int port, int backlog);
+    // 从另一个SrtCommon对象中获取属性
     void StealFrom(SrtCommon& src);
+    // 接受新客户端
     bool AcceptNewClient();
-
+    // 获取SRT socket
     SRTSOCKET Socket() const { return m_sock; }
+    // 获取绑定的socket
     SRTSOCKET Listener() const { return m_bindsock; }
-
+    // 关闭socket
     void Close();
 
 protected:
-
+    // 处理错误
     void Error(string src);
+    // 初始化
     void Init(string host, int port, map<string,string> par, bool dir_output);
 
+    // 配置后的设置
     virtual int ConfigurePost(SRTSOCKET sock);
+    // 配置前的设置
     virtual int ConfigurePre(SRTSOCKET sock);
 
+    // 打开客户端连接
     void OpenClient(string host, int port);
+    // 准备客户端
     void PrepareClient();
+    // 设置适配器
     void SetupAdapter(const std::string& host, int port);
+    // 连接客户端
     void ConnectClient(string host, int port);
 
+    // 打开服务器
     void OpenServer(string host, int port)
     {
         PrepareListener(host, port, 1);
     }
 
+    // 打开Rendezvous连接　Q:什么叫rendezvous连接?
     void OpenRendezvous(string adapter, string host, int port);
 
+    // 虚析构
     virtual ~SrtCommon();
 };
 

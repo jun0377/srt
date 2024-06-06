@@ -770,8 +770,11 @@ public:
     int GetSysSocket() const override { return 0; };
 };
 
+// 通用模板声明
 template <class Iface> struct Console;
+// 特化模板，当模板参数为Source时，类型为ConsoleSource
 template <> struct Console<Source> { typedef ConsoleSource type; };
+// 特化模板，当模板参数为Target时，类型为ConsoleTarget
 template <> struct Console<Target> { typedef ConsoleTarget type; };
 
 template <class Iface>
@@ -1157,7 +1160,9 @@ inline bool IsOutput() { return false; }
 template<>
 inline bool IsOutput<Target>() { return true; }
 
+// 模板函数，根据传入的URI,返回特定类型的对象
 template <class Base>
+// Q: 这里的extern是不是有问题？起什么作用呢？这种语法是不是有问题？
 extern unique_ptr<Base> CreateMedium(const string& uri)
 {
     // 独占指针
@@ -1214,7 +1219,7 @@ extern unique_ptr<Base> CreateMedium(const string& uri)
         ptr.reset( CreateSrt<Base>(u.host(), iport, u.parameters()) );
         break;
 
-
+    // UDP类型
     case UriParser::UDP:
         iport = atoi(u.port().c_str());
         if ( iport < 1024 )
@@ -1225,6 +1230,7 @@ extern unique_ptr<Base> CreateMedium(const string& uri)
         ptr.reset( CreateUdp<Base>(u.host(), iport, u.parameters()) );
         break;
 
+    // RTP类型
     case UriParser::RTP:
         if (IsOutput<Base>())
         {

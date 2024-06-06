@@ -323,6 +323,7 @@ bool DoUpload(UriParser& ut, string path, string filename,
     bool connected = false;
     int pollid = -1;
 
+    // ifstream = input file stream
     ifstream ifile(path, ios::binary);
     if ( !ifile )
     {
@@ -338,19 +339,24 @@ bool DoUpload(UriParser& ut, string path, string filename,
         goto exit;
     }
 
-
+    // interrupt用于中断线程的执行
     while (!interrupt)
     {
-        // Target指针赋值
+        // Target初始化复制
         if (!tar.get())
         {
+
+            // 根据target URI中的类型type，创建不同的对象，即SRT对象
             tar = Target::Create(ut.makeUri());
+
+            // 创建失败
             if (!tar.get())
             {
                 cerr << "Unsupported target type: " << ut.uri() << endl;
                 goto exit;
             }
 
+            // epoll事件类型，因为是仅发送，所以需要需要关注EPOLL_OUT和EPOLL_ERR两种类型
             int events = SRT_EPOLL_OUT | SRT_EPOLL_ERR;
             if (srt_epoll_add_usock(pollid,
                     tar->GetSRTSocket(), &events))
@@ -695,7 +701,7 @@ bool Upload(UriParser& srt_target_uri, UriParser& fileuri,
     // 设置目标URI的"transtype"参数为"file"，指示上传类型为文件
     srt_target_uri["transtype"] = "file";
 
-    // 开始上传
+    // 开始上传,即开始发送
     return DoUpload(srt_target_uri, path, filename, cfg, out_stats);
 }
 
@@ -817,7 +823,7 @@ int main(int argc, char** argv)
                 cerr << "SRT to FILE should be specified\n";
                 return 1;
             }
-            // 下载
+            // 下载，即接收线程
             Download(us, ut, cfg, out_stats);
         }
         // 目标是srt,源是file，执行上传
@@ -828,7 +834,7 @@ int main(int argc, char** argv)
                 cerr << "FILE to SRT should be specified\n";
                 return 1;
             }
-            // 上传
+            // 上传，即发送线程
             Upload(ut, us, cfg, out_stats);
         }
         else

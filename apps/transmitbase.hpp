@@ -44,6 +44,7 @@ struct MediaPacket
 
 extern std::shared_ptr<SrtStatsWriter> transmit_stats_writer;
 
+// 包含一个URI解析器
 class Location
 {
 public:
@@ -82,6 +83,7 @@ public:
     virtual bool Broken() = 0;
     virtual void Close() {}
     virtual size_t Still() { return 0; }
+    // 静态方法
     static std::unique_ptr<Target> Create(const std::string& url);
     virtual ~Target() {}
 
