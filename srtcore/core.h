@@ -1217,16 +1217,23 @@ private: // Timers functions
     void checkRexmitTimer(const time_point& currtime);
 
 
-private: // for UDP multiplexer
+private: // UDP多路服用，for UDP multiplexer
+    // 指向发送队列的指针，这个队列用于存储待发送的数据包
     CSndQueue* m_pSndQueue;    // packet sending queue
+    // 指向接收队列的指针，这个队列用于缓存接收到的数据包
     CRcvQueue* m_pRcvQueue;    // packet receiving queue
+    // 存储对端地址的结构体
     sockaddr_any m_PeerAddr;   // peer address
+    // 当发送数据时，用于覆盖UDP数据包的源地址的结构体。允许自定义发送数据包时的源IP地址和端口
     sockaddr_any m_SourceAddr; // override UDP source address with this one when sending
+    // 存储本地UDP接口的IP地址
     uint32_t m_piSelfIP[4];    // local UDP IP address
+    // 指向发送节点信息的指针,包含了在发送队列（snd queue）中维护的与连接相关的状态或统计信息，用于UDT（UDP-based Data Transfer Protocol）协议的管理
     CSNode* m_pSNode;          // node information for UDT list used in snd queue
+    // 指向接收节点信息的指针,用于接收队列（rcv queue），帮助管理接收端的连接状态或统计信息
     CRNode* m_pRNode;          // node information for UDT list used in rcv queue
 
-public: // For SrtCongestion
+public: // SRT拥塞控制，For SrtCongestion
     const CSndQueue* sndQueue() { return m_pSndQueue; }
     const CRcvQueue* rcvQueue() { return m_pRcvQueue; }
 

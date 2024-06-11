@@ -345,7 +345,6 @@ bool DoUpload(UriParser& ut, string path, string filename,
         // Target初始化复制
         if (!tar.get())
         {
-
             // 根据target URI中的类型type，创建不同的对象，即SRT对象
             tar = Target::Create(ut.makeUri());
 
@@ -371,6 +370,8 @@ bool DoUpload(UriParser& ut, string path, string filename,
         s = tar->GetSRTSocket();
         assert(s != SRT_INVALID_SOCK);
 
+
+        // srt epoll wait, 超时时间100ms
         SRTSOCKET efd;
         int efdlen = 1;
         if (srt_epoll_wait(pollid,
@@ -385,6 +386,7 @@ bool DoUpload(UriParser& ut, string path, string filename,
 
         SRT_SOCKSTATUS status = srt_getsockstate(s);
 
+        // 判断srt socket状态
         switch (status)
         {
             case SRTS_LISTENING:
@@ -431,13 +433,16 @@ bool DoUpload(UriParser& ut, string path, string filename,
             break;
         }
 
+        // 已经建立连接，开始传输文件
         if (connected)
         {
+            // 读取文件到vertor中
             vector<char> buf(cfg.chunk_size);
             size_t n = ifile.read(buf.data(), cfg.chunk_size).gcount();
             size_t shift = 0;
             while (n > 0)
             {
+                // 写入数据到目标，更新传输统计信息
                 int st = tar->Write(buf.data() + shift, n, 0, out_stats);
                 Verb() << "Upload: " << n << " --> " << st
                     << (!shift ? string() : "+" + Sprint(shift));
@@ -452,6 +457,7 @@ bool DoUpload(UriParser& ut, string path, string filename,
                 shift += st;
             }
 
+            // 文件读到末尾，表示上传成功
             if (ifile.eof())
             {
                 cerr << "File sent" << endl;
@@ -459,6 +465,7 @@ bool DoUpload(UriParser& ut, string path, string filename,
                 break;
             }
 
+            // 文件读取出错
             if ( !ifile.good() )
             {
                 cerr << "ERROR while reading file\n";
@@ -468,6 +475,8 @@ bool DoUpload(UriParser& ut, string path, string filename,
         }
     }
 
+    // 如果上传成功且配置中允许，则尝试清空发送缓冲区
+    // 这一步操作难道是因为缓冲区中的数据可能并没有真正发送到对端？
     if (result && !cfg.skip_flushing)
     {
         assert(s != SRT_INVALID_SOCK);
@@ -510,7 +519,7 @@ bool DoDownload(UriParser& us, string directory, string filename,
                 const FileTransmitConfig &cfg, std::ostream &out_stats)
 {
     bool result = false;
-    unique_ptr<Source> src;
+    unique_ptr<Source> src;                
     SRTSOCKET s = SRT_INVALID_SOCK;
     bool connected = false;
     int pollid = -1;
@@ -520,6 +529,7 @@ bool DoDownload(UriParser& us, string directory, string filename,
     SRTSOCKET efd;
     int efdlen = 1;
 
+    // 创建epoll实例
     pollid = srt_epoll_create();
     if ( pollid < 0 )
     {
@@ -529,8 +539,10 @@ bool DoDownload(UriParser& us, string directory, string filename,
 
     while (!interrupt)
     {
+        // Source初始化
         if (!src.get())
         {
+            // 根据URI创建数据源
             src = Source::Create(us.makeUri());
             if (!src.get())
             {
@@ -538,6 +550,7 @@ bool DoDownload(UriParser& us, string directory, string filename,
                 goto exit;
             }
 
+            // 因为仅是接收数据，所以只需要关注SRT_EPOLL_IN和SRT_EPOLL_ERR事件
             int events = SRT_EPOLL_IN | SRT_EPOLL_ERR;
             if (srt_epoll_add_usock(pollid,
                     src->GetSRTSocket(), &events))

@@ -259,6 +259,7 @@ CUDTUnited& srt::CUDT::uglobal()
 
 #endif
 
+// CUDT属性初始化
 void srt::CUDT::construct()
 {
     m_pSndBuffer           = NULL;
@@ -312,17 +313,22 @@ void srt::CUDT::construct()
 
 srt::CUDT::CUDT(CUDTSocket* parent)
     : m_parent(parent)
+
+// 最大重传带宽，用来限制发送端在网络中重传的数据量
 #ifdef ENABLE_MAXREXMITBW
     , m_SndRexmitRate(sync::steady_clock::now())
 #endif
     , m_iISN(-1)
     , m_iPeerISN(-1)
 {
+    // CUDT属性初始化
     construct();
 
     (void)SRT_DEF_VERSION;
 
     // Runtime fields
+// 启用数据绑定，允许在发送端将数据分成多个数据流，并在接收端重新组合这些数据流
+// 允许发送端将数据通过多个网络连接发送，并在接收端将这些数据重新组合成完整的数据流
 #if ENABLE_BONDING
     m_HSGroupType           = SRT_GTYPE_UNDEFINED;
 #endif
