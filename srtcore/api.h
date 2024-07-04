@@ -501,7 +501,9 @@ private:
     int         m_iInstanceCount; // number of startup() called by application
     bool        m_bGCStatus;      // if the GC thread is working (true)
 
+    // 资源回收线程
     sync::CThread m_GCThread;
+
     static void*  garbageCollect(void*);
 
     sockets_t m_ClosedSockets; // temporarily store closed sockets

@@ -238,7 +238,7 @@ string srt::CUDTUnited::CONID(SRTSOCKET sock)
 
 int srt::CUDTUnited::startup()
 {
-    // 获取锁
+    // 自动管理互斥锁，构造时获取锁，析构时释放锁
     ScopedLock gcinit(m_InitLock);
 
     // 确保只有一个实例在运行
@@ -261,7 +261,7 @@ int srt::CUDTUnited::startup()
     // 数据包过滤
     PacketFilter::globalInit();
 
-    // 如果资源回收线程正在执行，不允许创建新的实例，立即退出
+    // 如果资源回收线程正在执行，不允许创建新的实例
     if (m_bGCStatus)
         return 1;
 
@@ -2576,6 +2576,7 @@ srt::CUDTSocket* srt::CUDTUnited::locatePeer(const sockaddr_any& peer, const SRT
 
 void srt::CUDTUnited::checkBrokenSockets()
 {
+    // 全局控制的互斥锁，构造时获取锁，析构时释放锁
     ScopedLock cg(m_GlobControlLock);
 
 #if ENABLE_BONDING
@@ -2605,15 +2606,19 @@ void srt::CUDTUnited::checkBrokenSockets()
 #endif
 
     // set of sockets To Be Closed and To Be Removed
-    vector<SRTSOCKET> tbc;
-    vector<SRTSOCKET> tbr;
+    vector<SRTSOCKET> tbc;      // 待关闭的套接字集合
+    vector<SRTSOCKET> tbr;      // 待移除的套接字结合
 
+    // 遍历map
     for (sockets_t::iterator i = m_Sockets.begin(); i != m_Sockets.end(); ++i)
     {
         CUDTSocket* s = i->second;
+
+        // 套接字正常，continue
         if (!s->core().m_bBroken)
             continue;
 
+        // 套接字状态为监听，并且监听套接字在3秒内没有连接，则继续
         if (s->m_Status == SRTS_LISTENING)
         {
             const steady_clock::duration elapsed = steady_clock::now() - s->m_tsClosureTimeStamp;
@@ -3303,13 +3308,17 @@ void* srt::CUDTUnited::garbageCollect(void* p)
 {
     CUDTUnited* self = (CUDTUnited*)p;
 
+    // 空操作，只是作为一个标识
     THREAD_STATE_INIT("SRT:GC");
+
 
     UniqueLock gclock(self->m_GCStopLock);
 
     while (!self->m_bClosing)
     {
         INCREMENT_THREAD_ITERATIONS();
+
+        // 检查套接字状态
         self->checkBrokenSockets();
 
         HLOGC(inlog.Debug, log << "GC: sleep 1 s");

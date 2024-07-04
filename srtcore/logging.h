@@ -108,8 +108,11 @@ struct LogConfig
 {
     typedef std::bitset<SRT_LOGFA_LASTNONE+1> fa_bitset_t;
     fa_bitset_t enabled_fa;   // NOTE: assumed atomic reading
+    // 日志等级
     LogLevel::type max_level; // NOTE: assumed atomic reading
+    // 日志输出流目的地
     std::ostream* log_stream;
+    // 日志处理回调函数
     SRT_LOG_HANDLER_FN* loghandler_fn;
     void* loghandler_opaque;
     srt::sync::Mutex mutex;
@@ -140,26 +143,36 @@ struct LogConfig
 
 // The LogDispatcher class represents the object that is responsible for
 // a decision whether to log something or not, and if so, print the log.
+// 日志调度器
 struct SRT_API LogDispatcher
 {
 private:
+    // 功能区域标识
     int fa;
+    // 日志等级
     LogLevel::type level;
+    // 用户自定义前缀
     static const size_t MAX_PREFIX_SIZE = 32;
+    // 日志前缀
     char prefix[MAX_PREFIX_SIZE+1];
+    // 日志配置
     LogConfig* src_config;
 
+    // 检查标志位是否设置
     bool isset(int flg) { return (src_config->flags & flg) != 0; }
 
 public:
 
+    // 初始化日志调度器
     LogDispatcher(int functional_area, LogLevel::type log_level, const char* your_pfx,
             const char* logger_pfx /*[[nullable]]*/, LogConfig& config):
         fa(functional_area),
         level(log_level),
         src_config(&config)
     {
-        // XXX stpcpy desired, but not enough portable
+        // 根据用户和日志器前缀组合最终前缀
+        // 注意：考虑到字符串长度，避免超出最大前缀长度
+        // XXX stpcpy desired, but not enough portable，超出的长度将被截断
         // Composing the exact prefix is not critical, so simply
         // cut the prefix, if the length is exceeded
 
@@ -190,9 +203,12 @@ public:
     {
     }
 
+    // 检查当前日志是否启用
     bool CheckEnabled();
 
+     // 创建日志行前缀
     void CreateLogLinePrefix(std::ostringstream&);
+    // 发送一行日志
     void SendLogLine(const char* file, int line, const std::string& area, const std::string& sl);
 
     // log.Debug("This is the ", nth, " time");  <--- C++11 only.

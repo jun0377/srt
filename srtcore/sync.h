@@ -363,6 +363,7 @@ private:
 };
 
 /// A pthread version of std::chrono::unique_lock<mutex>
+// 提供互斥锁的功能
 class SRT_ATTR_SCOPED_CAPABILITY UniqueLock
 {
     friend class SyncEvent;
@@ -821,6 +822,27 @@ typedef CUDTException CThreadException;
 
 
 // 创建/管理/控制/销毁线程
+/*
+使用CThread类来管理线程相比直接使用底层的POSIX线程API（如pthread_create, pthread_join等）有以下好处：
+1. 封装性：CThread类将线程创建、运行、管理等操作封装成类的方法，使得代码更加整洁、易于理解和维护。程序员不需要直接调用底层API，减少了出错机会。
+2. 面向对象：符合面向对象编程的思想，通过对象来表示和操作线程，可以更好地融入到C++的类和对象体系中，提高代码的组织性和复用性。
+3. 异常安全：CThread类可以在内部处理线程创建失败等异常情况，通过抛出C++异常（如std::system_error），使得上层代码可以统一处理错误，增加了程序的健壮性。
+4. RAII（Resource Acquisition Is Initialization）原则：CThread类的实例生命周期自动管理线程资源，当对象生命周期结束时，可以通过析构函数等机制确保资源被正确释放，避免资源泄露。
+5. 可移植性：虽然示例中基于POSIX线程，但通过类封装后，如果需要将程序移植到其他支持C++线程库（如C++11的std::thread）的平台上，只需修改CThread类的实现细节，而对外部接口的影响可以降到最低。
+6. 高级功能支持：类中可以容易地添加更多高级功能，比如线程同步（如互斥锁、条件变量）、线程间通信等，而这些在直接使用原生API时可能需要手动实现更多的逻辑。
+综上所述，CThread类简化了线程管理的复杂度，提高了代码质量，使得多线程编程更加高效和安全。
+
+
+此类的功能：
+1. CThread()：构造函数，用于创建一个未启动的线程对象。
+2. CThread(void *(*start_routine) (void *), void *arg)：构造函数，用于创建一个指定启动函数和参数的线程对象，并启动线程。
+3. CThread& operator=(CThread &other) = delete：禁止对CThread类的对象进行赋值操作。
+4. CThread& operator=(CThread &&other)：移动赋值函数，用于将other对象的资源转移到当前对象上，并返回当前对象的引用。
+5. bool joinable() const：检查线程是否在活动，即是否可以pthread_join回收线程资源。
+6. const id get_id() const：返回当前线程的线程号。
+7. void join()：阻塞等待线程终止并回收资源。
+8. void create(void *(*start_routine) (void *), void *arg)：创建线程。
+ */
 class CThread
 {
 public:
@@ -829,8 +851,9 @@ public:
     CThread(void *(*start_routine) (void *), void *arg);
 
 #if HAVE_FULL_CXX11
-    CThread& operator=(CThread &other) = delete;
-    CThread& operator=(CThread &&other);
+    
+    CThread& operator=(CThread &other) = delete; // 禁止对CThread类的对象进行赋值操作
+    CThread& operator=(CThread &&other);    // 移动赋值函数。它的作用是将other对象的资源转移到当前对象上，并返回当前对象的引用
 #else
     CThread& operator=(CThread &other);
     /// To be used only in StartThread function.
@@ -844,6 +867,7 @@ public: // Observers
     /// A default constructed thread is not joinable.
     /// A thread that has finished executing code, but has not yet been joined
     /// is still considered an active thread of execution and is therefore joinable.
+    // 检查线程是否在活动，即是否可以pthread_join回收线程资源
     bool joinable() const;
 
     struct id
@@ -861,6 +885,7 @@ public: // Observers
 
     /// Returns the id of the current thread.
     /// In this implementation the ID is the pthread_t.
+    // 返回当前线程的线程号
     const id get_id() const { return id(m_thread); }
 
 public:
@@ -868,11 +893,13 @@ public:
     /// If that thread has already terminated, then join() returns immediately.
     ///
     /// @throws std::system_error if an error occurs
+    // 阻塞等待线程终止并回收资源
     void join();
 
 public: // Internal
     /// Calls pthread_create, throws exception on failure.
     /// @throw CThreadException
+    // 创建线程
     void create(void *(*start_routine) (void *), void *arg);
 
 private:

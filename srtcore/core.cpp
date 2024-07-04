@@ -234,6 +234,7 @@ const SrtOptionAction s_sockopt_action;
 
 #if HAVE_CXX11
 
+// 饿汉式单例模式 - 静态成员instance在第一次使用前就已经创建好了
 CUDTUnited& srt::CUDT::uglobal()
 {
     static CUDTUnited instance;

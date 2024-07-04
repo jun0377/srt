@@ -89,7 +89,6 @@ namespace LogLevel
 
     enum type
     {
-        // log critical: fatal error, the application will crash
         fatal = LOG_CRIT,
         // Fatal vs. Error: with Error, you can still continue.
         error = LOG_ERR,
