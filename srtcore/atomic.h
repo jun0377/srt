@@ -231,6 +231,7 @@ public:
   /// value.
   ///
   /// @param new_val The new value to write to the atomic object.
+  // 设置原子变量的值
   void store(const T new_val) {
 #if defined(ATOMIC_USE_SRT_SYNC_MUTEX) && (ATOMIC_USE_SRT_SYNC_MUTEX == 1)
     ScopedLock lg_(mutex_);
@@ -249,6 +250,7 @@ public:
   /// @returns the current value of the atomic object.
   /// @note Be careful about how this is used, since any operations on the
   /// returned value are inherently non-atomic.
+  // 获取原子变量的值
   T load() const {
 #if defined(ATOMIC_USE_SRT_SYNC_MUTEX) && (ATOMIC_USE_SRT_SYNC_MUTEX == 1)
     ScopedLock lg_(mutex_);

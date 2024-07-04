@@ -136,6 +136,8 @@ void srt::CUDTSocket::setClosed()
     // in order to prevent other methods from accessing invalid address
     // a timer is started and the socket will be removed after approximately
     // 1 second
+    // 当套接字被关闭时，为了防止其他方法仍在使用该套接字，它不会立即从套接字列表中移除
+    // 会启动一个计时器，在大约1秒后（请参阅 CUDTUnited::checkBrokenSockets() 函数）才会真正删除该套接字
     m_tsClosureTimeStamp = steady_clock::now();
 }
 
@@ -2618,12 +2620,14 @@ void srt::CUDTUnited::checkBrokenSockets()
         if (!s->core().m_bBroken)
             continue;
 
-        // 套接字状态为监听，并且监听套接字在3秒内没有连接，则继续
+        // 套接字状态为监听
         if (s->m_Status == SRTS_LISTENING)
         {
+            // 时间间隔
             const steady_clock::duration elapsed = steady_clock::now() - s->m_tsClosureTimeStamp;
             // A listening socket should wait an extra 3 seconds
             // in case a client is connecting.
+            // 即使是在服务器准备关闭的瞬间，也要额外等待3秒，等待可能到来的客户端连接，why???
             if (elapsed < milliseconds_from(CUDT::COMM_CLOSE_BROKEN_LISTENER_TIMEOUT_MS))
                 continue;
         }
@@ -2631,12 +2635,16 @@ void srt::CUDTUnited::checkBrokenSockets()
         {
             CUDT& u = s->core();
 
+            // 进入临界区，上锁
             enterCS(u.m_RcvBufferLock);
+            // 判断接收缓冲区中是否有数据
             bool has_avail_packets = u.m_pRcvBuffer && u.m_pRcvBuffer->hasAvailablePackets();
+            // 离开缓冲区，解锁
             leaveCS(u.m_RcvBufferLock);
 
             if (has_avail_packets)
             {
+                // 已经broken的套接字，缓冲区中是否有数据，如果有数据的话，多等待一会儿
                 const int bc = u.m_iBrokenCounter.load();
                 if (bc > 0)
                 {
@@ -2656,11 +2664,15 @@ void srt::CUDTUnited::checkBrokenSockets()
         }
 #endif
 
+        // 套接字管理日志
         HLOGC(smlog.Debug, log << "checkBrokenSockets: moving BROKEN socket to CLOSED: @" << i->first);
 
         // close broken connections and start removal timer
+        // 将套接字状态设置为关闭，并启动一个关闭套接字的计时器，1s后关闭套接字
         s->setClosed();
+        // 转移套接字到待关闭套接字集合中
         tbc.push_back(i->first);
+        // 临时存储套接字
         m_ClosedSockets[i->first] = s;
 
         // remove from listener's queue
@@ -2677,15 +2689,18 @@ void srt::CUDTUnited::checkBrokenSockets()
         leaveCS(ls->second->m_AcceptLock);
     }
 
+    // 临时存储的待关闭套接字集合
     for (sockets_t::iterator j = m_ClosedSockets.begin(); j != m_ClosedSockets.end(); ++j)
     {
         CUDTSocket* ps = j->second;
         CUDT& u = ps->core();
 
         // HLOGC(smlog.Debug, log << "checking CLOSED socket: " << j->first);
+        // 发送缓冲区过期时间
         if (!is_zero(u.m_tsLingerExpiration))
         {
             // asynchronous close:
+            // 异步关闭
             if ((!u.m_pSndBuffer) || (0 == u.m_pSndBuffer->getCurrBufSize()) ||
                 (u.m_tsLingerExpiration <= steady_clock::now()))
             {
@@ -2698,10 +2713,12 @@ void srt::CUDTUnited::checkBrokenSockets()
 
         // timeout 1 second to destroy a socket AND it has been removed from
         // RcvUList
+        // 到达超时时间1s后就销毁套接字
         const steady_clock::time_point now        = steady_clock::now();
         const steady_clock::duration   closed_ago = now - ps->m_tsClosureTimeStamp;
         if (closed_ago > seconds_from(1))
         {
+            // 链表中的一个节点
             CRNode* rnode = u.m_pRNode;
             if (!rnode || !rnode->m_bOnList)
             {
@@ -2710,6 +2727,7 @@ void srt::CUDTUnited::checkBrokenSockets()
                           << FormatDuration(closed_ago) << " ago and removed from RcvQ - will remove");
 
                 // HLOGC(smlog.Debug, log << "will unref socket: " << j->first);
+                // 将套接字转移到已关闭的套接字集合中
                 tbr.push_back(j->first);
             }
         }
@@ -3310,8 +3328,7 @@ void* srt::CUDTUnited::garbageCollect(void* p)
 
     // 空操作，只是作为一个标识
     THREAD_STATE_INIT("SRT:GC");
-
-
+    // 普通的锁，只是进行了一层封装
     UniqueLock gclock(self->m_GCStopLock);
 
     while (!self->m_bClosing)

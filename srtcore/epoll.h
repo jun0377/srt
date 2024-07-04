@@ -89,13 +89,17 @@ class CEPollDesc
 
    /// The type for `m_USockEventNotice`, the pair contains:
    /// * The back-pointer to the subscriber object for which this event notice serves
-   /// * The events currently being on
+   /// * The events currently being on义了一个名为enotice_t的类型，它是std::list<Notice>的别名。
+   // Notice是一个结构体，其中包含两个字段：一个是指向订阅者对象的指针，另一个是当前事件的集合。
+   // 这个类型用于存储事件通知的列表，每个通知都包含一个订阅者对象的指针和该订阅者当前所关注的事件集合
    typedef std::list<Notice> enotice_t;
 
+    // 用于处理事件订阅和事件触发的相关逻辑
    struct Wait
    {
        /// Events the subscriber is interested with. Only those will be
        /// regarded when updating event flags.
+       // 关注的事件类型
        int32_t watch;
 
        /// Which events should be edge-triggered. When the event isn't
@@ -103,19 +107,23 @@ class CEPollDesc
        /// it means that the event is to be waited for persistent state
        /// if this flag is not present here, and for edge trigger, if
        /// the flag is present here.
+       // 采用边缘触发方式的事件,如果该事件不在watch中，则忽略该标志位
        int32_t edge;
 
        /// The current persistent state. This is usually duplicated in
        /// a dedicated state object in `m_USockEventNotice`, however the state
        /// here will stay forever as is, regardless of the edge/persistent
        /// subscription mode for the event.
+       // 事件状态，表示事件是否发生
        int32_t state;
 
        /// The iterator to `m_USockEventNotice` container that contains the
        /// event notice object for this subscription, or the value from
        /// `nullNotice()` if there is no such object.
+       // 通知迭代器，指向通知容器的迭代器，用于定位订阅的通知对象
        enotice_t::iterator notit;
 
+        // 构造函数
        Wait(explicit_t<int32_t> sub, explicit_t<int32_t> etr, enotice_t::iterator i)
            :watch(sub)
            ,edge(etr)
@@ -124,6 +132,7 @@ class CEPollDesc
        {
        }
 
+        // 检查边缘触发的事件
        int edgeOnly() { return edge & watch; }
 
        /// Clear all flags for given direction from the notices
@@ -132,6 +141,7 @@ class CEPollDesc
        /// @param direction event type that has to be cleared
        /// @return true, if this cleared the last event (the caller
        /// want to remove the subscription for this socket)
+       /// 清除指定方向的事件订阅和状态，并检查是否所有事件都已清除。
        bool clear(int32_t direction)
        {
            if (watch & direction)
@@ -160,6 +170,9 @@ std::string DisplayEpollWatch();
    /// Objects are removed from here when an event is registerred as edge-triggered.
    /// Otherwise it is removed only when all events as per subscription
    /// are no longer on.
+   // 当一个事件被注册为边缘触发时，对象从这里被移除。
+    ///否则，只有当所有事件都是订阅时，它才被删除
+    ///不再打开。
    enotice_t m_USockEventNotice;
 
    // Special behavior
@@ -358,6 +371,13 @@ std::string DisplayEpollWatch();
    }
 };
 
+/*
+*    CEPoll 类是用于 SRT（Secure Reliable Transport）系统中的 EPoll 事件轮询机制的管理类。
+*    它提供了创建、更新以及在 UDT（User Datagram Transport）套接字和系统套接字上等待事件的功能。
+*    同时，还允许清除和释放 EPoll 实例。
+*    该类包含多个公共成员函数，每个函数执行与 EPoll 管理相关的特定任务，
+*    设计用于与 SRT 中的其他类如 CUDT、CUDTGroup 和 CRendezvousQueue 配合使用
+*/
 class CEPoll
 {
 friend class srt::CUDT;

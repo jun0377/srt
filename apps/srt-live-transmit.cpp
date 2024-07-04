@@ -360,7 +360,7 @@ int parse_args(LiveTransmitConfig &cfg, int argc, char** argv)
 
 int main(int argc, char** argv)
 {
-    // 初始化SRT库以管理资源，只是创建了一个资源回收线程
+    // 初始化SRT库以管理资源，主要是创建了一个资源回收线程
     srt_startup();
     // This is mainly required on Windows to initialize the network system,
     // for a case when the instance would use UDP. SRT does it on its own, independently.
@@ -400,7 +400,7 @@ int main(int argc, char** argv)
     //
     // Set SRT log levels and functional areas
     //
-    // 根据用户配置设置SRT日志级别和功能区域
+    // 根据用户配置设置SRT日志级别
     srt_setloglevel(cfg.loglevel);
     if (!cfg.logfas.empty())
     {
@@ -421,6 +421,8 @@ int main(int argc, char** argv)
             | SRT_LOGF_DISABLE_THREADNAME
             | SRT_LOGF_DISABLE_EOL
         );
+
+        // 注册日志处理函数
         srt_setloghandler(NAME, TestLogHandler);
     }
     else if (!cfg.logfile.empty())
@@ -853,6 +855,7 @@ int main(int argc, char** argv)
 // Class utilities
 
 
+// 日志处理函数
 void TestLogHandler(void* opaque, int level, const char* file, int line, const char* area, const char* message)
 {
     char prefix[100] = "";

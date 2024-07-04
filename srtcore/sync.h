@@ -82,6 +82,7 @@ using Duration = std::chrono::duration<Clock>;
 /// Class template srt::sync::Duration represents a time interval.
 /// It consists of a count of ticks of _Clock.
 /// It is a wrapper of system timers in case of non-C++11 chrono build.
+// 表示一个时间段的模板类，用_Clock的滴答计数值来表示，它是系统计时器的包装器，目的是为了兼容非c++11标准
 template <class Clock>
 class Duration
 {
@@ -363,7 +364,8 @@ private:
 };
 
 /// A pthread version of std::chrono::unique_lock<mutex>
-// 提供互斥锁的功能
+// 只是对普通的互斥锁进行了一层封装，作用类似与C++11标准中的std::unique_lock
+// 这里进行封装，难道是为了兼容不同的c++标准？
 class SRT_ATTR_SCOPED_CAPABILITY UniqueLock
 {
     friend class SyncEvent;
@@ -389,6 +391,7 @@ public:
 };
 #endif // ENABLE_STDCXX_SYNC
 
+// CS : Critical Section（临界区）
 inline void enterCS(Mutex& m) SRT_ATTR_EXCLUDES(m) SRT_ATTR_ACQUIRE(m) { m.lock(); }
 
 inline bool tryEnterCS(Mutex& m) SRT_ATTR_EXCLUDES(m) SRT_ATTR_TRY_ACQUIRE(true, m) { return m.try_lock(); }

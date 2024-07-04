@@ -19,6 +19,7 @@ SRT_API srt_logging::LogConfig srt_logger_config(srt_logging::logger_fa_all.allf
 namespace srt_logging
 {
     Logger gglog(SRT_LOGFA_GENERAL, srt_logger_config, "SRT.gg");
+    // 套接字管理日志
     Logger smlog(SRT_LOGFA_SOCKMGMT, srt_logger_config, "SRT.sm");
     Logger cnlog(SRT_LOGFA_CONN, srt_logger_config, "SRT.cn");
     Logger xtlog(SRT_LOGFA_XTIMER, srt_logger_config, "SRT.xt");
