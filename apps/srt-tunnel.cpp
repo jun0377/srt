@@ -1074,14 +1074,17 @@ int OnINT_StopService(int)
 
 int main( int argc, char** argv )
 {
+    // 初始化网络模块
     if (!SysInitializeNetwork())
     {
         cerr << "Fail to initialize network module.";
         return 1;
     }
 
+    // 设置默认数据块大小
     size_t chunk = default_chunk;
 
+    // 命令行选项
     OptionName
         o_loglevel = { "ll", "loglevel" },
         o_logfa = { "lf", "logfa" },
@@ -1090,11 +1093,13 @@ int main( int argc, char** argv )
         o_noflush = {"s", "skipflush" };
 
     // Options that expect no arguments (ARG_NONE) need not be mentioned.
+    // 需要一个参数的选项
     vector<OptionScheme> optargs = {
         { o_loglevel, OptionScheme::ARG_ONE },
         { o_logfa, OptionScheme::ARG_ONE },
         { o_chunk, OptionScheme::ARG_ONE }
     };
+    // 处理命令行参数
     options_t params = ProcessOptions(argv, argc, optargs);
 
     /*
@@ -1107,6 +1112,7 @@ int main( int argc, char** argv )
        }
      */
 
+    // 检查参数数量是否正确
     vector<string> args = params[""];
     if ( args.size() < 2 )
     {
@@ -1114,10 +1120,13 @@ int main( int argc, char** argv )
         return 1;
     }
 
+    // 解析日志级别并设置
     string loglevel = Option<OutString>(params, "error", o_loglevel);
     string logfa = Option<OutString>(params, "", o_logfa);
     srt_logging::LogLevel::type lev = SrtParseLogLevel(loglevel);
     srt::setloglevel(lev);
+
+    // 设置日志输出格式
     if (logfa == "")
     {
         srt::addlogfa(SRT_LOGFA_APP);
@@ -1134,6 +1143,7 @@ int main( int argc, char** argv )
             srt::addlogfa(SRT_LOGFA_APP);
     }
 
+    // 设置日志详细输出模式
     string verbo = Option<OutString>(params, "no", o_verbose);
     if ( verbo == "" || !false_names.count(verbo) )
     {
@@ -1141,12 +1151,14 @@ int main( int argc, char** argv )
         Verbose::cverb = &std::cout;
     }
 
+    // 设置数据块大小
     string chunks = Option<OutString>(params, "", o_chunk);
     if ( chunks!= "" )
     {
         chunk = stoi(chunks);
     }
 
+    // 解析监听和调用节点
     string listen_node = args[0];
     string call_node = args[1];
 
@@ -1155,6 +1167,7 @@ int main( int argc, char** argv )
     // It is allowed to use both media of the same type,
     // but only srt and tcp are allowed.
 
+    // 检查只允许使用'srt'和'tcp'协议
     set<string> allowed = {"srt", "tcp"};
     if (!allowed.count(ul.scheme())|| !allowed.count(uc.scheme()))
     {
@@ -1164,8 +1177,10 @@ int main( int argc, char** argv )
 
     Verb() << "LISTEN type=" << ul.scheme() << ", CALL type=" << uc.scheme();
 
+    // 启动清理器线程
     g_tunnels.start_cleaner();
 
+    // 创建listener
     main_listener = Medium::Create(listen_node, chunk, Medium::LISTENER);
 
     // The main program loop is only to catch
@@ -1176,22 +1191,30 @@ int main( int argc, char** argv )
     {
         try
         {
+            // 等待连接
             Verb() << "Waiting for connection...";
             std::unique_ptr<Medium> accepted = main_listener->Accept();
+
+            // 服务已停止，退出
             if (!g_tunnels.main_running)
             {
                 Verb() << "Service stopped. Exiting.";
                 break;
             }
+
+            // 连接已接受
             Verb() << "Connection accepted. Connecting to the relay...";
 
             // Now call the target address.
+            // 连接到目标地址
             std::unique_ptr<Medium> caller = Medium::Create(call_node, chunk, Medium::CALLER);
             caller->Connect();
 
+            // 已连接，建立管道
             Verb() << "Connected. Establishing pipe.";
 
             // No exception, we are free to pass :)
+            // 将连接传递到隧道管理器
             g_tunnels.install(std::move(accepted), std::move(caller));
         }
         catch (...)
@@ -1200,6 +1223,7 @@ int main( int argc, char** argv )
         }
     }
 
+    // 停止清理线程
     g_tunnels.stop_cleaner();
 
     return 0;
