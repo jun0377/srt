@@ -133,6 +133,7 @@ private:
 
 #if ENABLE_STDCXX_SYNC
 
+// stady_clock是一种单调时钟，不会因为系统时间的调整而改变，可以确保测量时间间隔的准确性
 using steady_clock = std::chrono::steady_clock;
 
 template <class Clock, class Duration = typename Clock::duration>

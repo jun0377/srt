@@ -144,6 +144,9 @@ public:
     /// A timer is started and the socket will be removed after approximately
     /// 1 second (see CUDTUnited::checkBrokenSockets()).
     //sync::steady_clock::time_point m_tsClosureTimeStamp;
+    // 记录套接字关闭的时间点
+    //  1. 当套接字被关闭时，不会立即从套接字列表中移除
+    //  2. 而是启动一个定时器，大约1s后套接字才会被移除，防止某些线程访问到无效的套接字
     sync::AtomicClock<sync::steady_clock> m_tsClosureTimeStamp;
 
     sockaddr_any m_SelfAddr; //< local address of the socket
@@ -401,6 +404,8 @@ private:
 
 private:
     typedef std::map<SRTSOCKET, CUDTSocket*> sockets_t; // stores all the socket structures
+    
+    // 所有的套接字
     SRT_ATTR_GUARDED_BY(m_GlobControlLock)
     sockets_t m_Sockets;
 
@@ -539,6 +544,8 @@ private:
     CCache<CInfoBlock>* const m_pCache;
 
 private:
+
+    // 当前实例正在关闭
     srt::sync::atomic<bool> m_bClosing;
     sync::Mutex             m_GCStartLock;
     sync::Mutex             m_GCStopLock;
@@ -552,6 +559,7 @@ private:
     // 资源回收线程是否在运行
     bool        m_bGCStatus;      // if the GC thread is working (true)
 
+    // 资源回收线程
     SRT_ATTR_GUARDED_BY(m_InitLock)
     sync::CThread m_GCThread;
     static void*  garbageCollect(void*);

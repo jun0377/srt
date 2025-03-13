@@ -2693,6 +2693,7 @@ srt::CUDTSocket* srt::CUDTUnited::locatePeer(const sockaddr_any& peer, const SRT
     return NULL;
 }
 
+// 检查套接字状态
 void srt::CUDTUnited::checkBrokenSockets()
 {
     ScopedLock cg(m_GlobControlLock);
@@ -2724,15 +2725,18 @@ void srt::CUDTUnited::checkBrokenSockets()
 #endif
 
     // set of sockets To Be Closed and To Be Removed
-    vector<SRTSOCKET> tbc;
-    vector<SRTSOCKET> tbr;
+    vector<SRTSOCKET> tbc;      // 待关闭的套接字
+    vector<SRTSOCKET> tbr;      // 待删除的套接字
 
+    // 遍历所有的套接字
     for (sockets_t::iterator i = m_Sockets.begin(); i != m_Sockets.end(); ++i)
     {
         CUDTSocket* s = i->second;
+        // 套接字正常，continue
         if (!s->core().m_bBroken)
             continue;
 
+        // 监听套接字，等待3s后再关闭
         if (s->m_Status == SRTS_LISTENING)
         {
             const steady_clock::duration elapsed = steady_clock::now() - s->m_tsClosureTimeStamp.load();
@@ -2745,10 +2749,12 @@ void srt::CUDTUnited::checkBrokenSockets()
         {
             CUDT& u = s->core();
 
+            // 接收缓冲区中还有未处理的数据包
             enterCS(u.m_RcvBufferLock);
             bool has_avail_packets = u.m_pRcvBuffer && u.m_pRcvBuffer->hasAvailablePackets();
             leaveCS(u.m_RcvBufferLock);
 
+            // /异常的套接字，接收缓冲区中仍有数据，套接字不会被立即关闭，而是等待此计数器归零后再关闭套接字
             if (has_avail_packets)
             {
                 const int bc = u.m_iBrokenCounter.load();
@@ -3441,6 +3447,7 @@ bool srt::CUDTUnited::updateListenerMux(CUDTSocket* s, const CUDTSocket* ls)
     return false;
 }
 
+// 资源回收线程
 void* srt::CUDTUnited::garbageCollect(void* p)
 {
     CUDTUnited* self = (CUDTUnited*)p;
@@ -3449,6 +3456,7 @@ void* srt::CUDTUnited::garbageCollect(void* p)
 
     UniqueLock gclock(self->m_GCStopLock);
 
+    // 当前实例正常运行
     while (!self->m_bClosing)
     {
         INCREMENT_THREAD_ITERATIONS();

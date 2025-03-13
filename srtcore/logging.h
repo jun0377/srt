@@ -104,14 +104,21 @@ written by
 namespace srt_logging
 {
 
+// 日志配置
 struct LogConfig
 {
+    // 所有的功能域，置位标识开启对应功能域的日志，清零标识关闭对应功能域的日志
     typedef std::bitset<SRT_LOGFA_LASTNONE+1> fa_bitset_t;
     fa_bitset_t enabled_fa;   // NOTE: assumed atomic reading
+
+    // 日志等级
     LogLevel::type max_level; // NOTE: assumed atomic reading
+    // 日志输出流
     std::ostream* log_stream;
+    // 日志处理函数
     SRT_LOG_HANDLER_FN* loghandler_fn;
     void* loghandler_opaque;
+    // 线程安全
     mutable srt::sync::Mutex mutex;
     int flags;
 
@@ -143,13 +150,18 @@ struct LogConfig
 struct SRT_API LogDispatcher
 {
 private:
+    // 功能域
     int fa;
+    // 日志等级
     LogLevel::type level;
+    // 日志前缀
     static const size_t MAX_PREFIX_SIZE = 32;
     char prefix[MAX_PREFIX_SIZE+1];
     size_t prefix_len;
+    // 日志配置
     LogConfig* src_config;
 
+    // 标志位判断
     bool isset(int flg) { return (src_config->flags & flg) != 0; }
 
 public:
@@ -163,6 +175,7 @@ public:
         const size_t your_pfx_len = your_pfx ? strlen(your_pfx) : 0;
         const size_t logger_pfx_len = logger_pfx ? strlen(logger_pfx) : 0;
 
+        // 日志前缀长度未超过限制，则前缀为 your_pfx + ':' + logger_pfx
         if (logger_pfx && your_pfx_len + logger_pfx_len + 1 < MAX_PREFIX_SIZE)
         {
             memcpy(prefix, your_pfx, your_pfx_len);
@@ -171,6 +184,7 @@ public:
             prefix[your_pfx_len + logger_pfx_len + 1] = '\0';
             prefix_len = your_pfx_len + logger_pfx_len + 1;
         }
+        // 日志前缀为 your_pfx
         else if (your_pfx)
         {
             // Prefix too long, so copy only your_pfx and only
@@ -180,6 +194,7 @@ public:
             prefix[copylen] = '\0';
             prefix_len = copylen;
         }
+        // 日志前缀为空
         else
         {
             prefix[0] = '\0';
@@ -392,7 +407,9 @@ struct LogDispatcher::Proxy
 
 class Logger
 {
+    // 功能模块
     int m_fa;
+    // 日志配置：启用哪些功能域的日志、日志等级、日志输出流、日志处理函数
     LogConfig& m_config;
 
 public:
