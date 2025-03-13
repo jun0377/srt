@@ -447,6 +447,7 @@ public: // internal API
         return genRandomInt(0, CSeqNo::m_iMaxSeqNo);
     }
 
+    // Singleton
     static CUDTUnited& uglobal();                      // UDT global management base
 
     std::set<int>& pollset() { return m_sPollID; }

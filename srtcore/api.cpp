@@ -247,9 +247,9 @@ string srt::CUDTUnited::CONID(SRTSOCKET sock)
     return os.str();
 }
 
+// 创建资源回收线程
 bool srt::CUDTUnited::startGarbageCollector()
 {
-
     ScopedLock guard(m_GCStartLock);
     if (!m_bGCStatus)
     {
@@ -342,8 +342,11 @@ void srt::CUDTUnited::closeAllSockets()
 
 int srt::CUDTUnited::startup()
 {
+    // RAII方式加锁
     ScopedLock gcinit(m_InitLock);
+    // 实例计数器
     m_iInstanceCount++;
+    // 创建资源回收线程
     if (m_bGCStatus)
         return (m_iInstanceCount == 1) ? 1 : 0;
     else

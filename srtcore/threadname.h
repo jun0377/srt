@@ -67,18 +67,22 @@ written by
 
 namespace srt {
 
+// 跨平台的线程命名机制
 class ThreadName
 {
 
+// Linux/Unix 平台
 #if (defined(HAVE_PTHREAD_GETNAME_NP) && defined(HAVE_PTHREAD_GETNAME_NP)) \
    || defined(__linux__)
 
+    // ThreadName Implementation
     class ThreadNameImpl
     {
     public:
         static const size_t BUFSIZE    = 64;
         static const bool   DUMMY_IMPL = false;
 
+        // 获取线程名称
         static bool get(char* namebuf)
         {
 #if defined(__linux__)
@@ -92,6 +96,7 @@ class ThreadName
 #endif
         }
 
+        // 设置线程名称
         static bool set(const char* name)
         {
             SRT_ASSERT(name != NULL);
@@ -113,14 +118,17 @@ class ThreadName
 #endif
         }
 
+        // 当前线程重命名
         explicit ThreadNameImpl(const std::string& name)
             : reset(false)
         {
             tid   = pthread_self();
 
+            // 获取线程名失败，立即返回，这样析构函数就不会尝试恢复原来的线程名称
             if (!get(old_name))
                 return;
 
+            // 设置线程名，并设置reset标志；reset用来标识是否修改过线程名
             reset = set(name.c_str());
             if (reset)
                 return;
@@ -128,11 +136,14 @@ class ThreadName
             // Try with a shorter name. 15 is the upper limit supported by Linux,
             // other platforms should support a larger value. So 15 should works
             // on all platforms.
+
+            // 线程名最多15 byte
             const size_t max_len = 15;
             if (name.size() > max_len)
                 reset = set(name.substr(0, max_len).c_str());
         }
 
+        // 析构时恢复旧的线程名称
         ~ThreadNameImpl()
         {
             if (!reset)
@@ -144,12 +155,17 @@ class ThreadName
         }
     
     private:
+        // 禁用拷贝构造
         ThreadNameImpl(ThreadNameImpl& other);
+        // 禁用赋值运算符
         ThreadNameImpl& operator=(const ThreadNameImpl& other);
 
     private:
+        // 是否进行过重命名
         bool      reset;
+        // 线程ID
         pthread_t tid;
+        // 旧的线程名称
         char      old_name[BUFSIZE];
     };
 

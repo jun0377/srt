@@ -77,13 +77,14 @@ std::string FormatTimeSys(const steady_clock::time_point& timestamp)
     return out.str();
 }
 
-
+// 根据不同的C++标准，提供不同的线程启动函数
 #ifdef ENABLE_STDCXX_SYNC
 bool StartThread(CThread& th, ThreadFunc&& f, void* args, const string& name)
 #else
 bool StartThread(CThread& th, void* (*f) (void*), void* args, const string& name)
 #endif
 {
+    // 线程名称
     ThreadName tn(name);
     try
     {

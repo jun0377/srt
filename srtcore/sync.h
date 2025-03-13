@@ -344,6 +344,7 @@ private:
 };
 
 /// A pthread version of std::scoped_lock (or lock_guard for C++11).
+// RAII编程思想
 class SRT_ATTR_SCOPED_CAPABILITY ScopedLock
 {
 public:

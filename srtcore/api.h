@@ -233,6 +233,9 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// 整体结构，包括所有的套接字和套接字组
+//  1. 已关闭的套接字或异常的套接字会首先从 m_Sodkets 移动到 m_ClosedSockets，随后由GC线程回收
+//  2. 已关闭的套接字组会移动到 m_ClosedGroups，当其引用计数为0时，由GC线程回收
 class CUDTUnited
 {
     friend class CUDT;
@@ -543,17 +546,23 @@ private:
 
     sync::Mutex m_InitLock;
     SRT_ATTR_GUARDED_BY(m_InitLock)
+    // 实例计数器
     int         m_iInstanceCount; // number of startup() called by application
     SRT_ATTR_GUARDED_BY(m_InitLock)
+    // 资源回收线程是否在运行
     bool        m_bGCStatus;      // if the GC thread is working (true)
 
     SRT_ATTR_GUARDED_BY(m_InitLock)
     sync::CThread m_GCThread;
     static void*  garbageCollect(void*);
 
+    // 保护CUDTUnited中的所有容器
     SRT_ATTR_GUARDED_BY(m_GlobControlLock)
+    // 已关闭的套接字或异常的套接字会首先从 m_Sodkets 移动到 m_ClosedSockets，随后由GC线程回收
     sockets_t m_ClosedSockets; // temporarily store closed sockets
+
 #if ENABLE_BONDING
+    // 已关闭的套接字组会移动到 m_ClosedGroups，当其引用计数为0时，由GC线程回收
     SRT_ATTR_GUARDED_BY(m_GlobControlLock)
     groups_t m_ClosedGroups;
 #endif

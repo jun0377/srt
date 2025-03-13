@@ -7,52 +7,87 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 
+# cmake最低版本要求
 cmake_minimum_required (VERSION 2.8.12 FATAL_ERROR)
+
+# SRT版本
 set (SRT_VERSION 1.5.4)
 
+# cmake模块搜索路径
 set (CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/scripts")
+# 包含scripts\haiUtil.cmake
 include(haiUtil) # needed for set_version_variables
+
 # CMake version 3.0 introduced the VERSION option of the project() command
 # to specify a project version as well as the name.
+
+# cmake版本小于3.0.0
 if(${CMAKE_VERSION} VERSION_LESS "3.0.0")
+	# 项目名称SRT,开发语言为C/C++
 	project(SRT C CXX)
 	# Sets SRT_VERSION_MAJOR, SRT_VERSION_MINOR, SRT_VERSION_PATCH
+	# 函数，设置 SRT_VERSION_MAJOR/SRT_VERSION_MINOR/SRT_VERSION_PATCH 三个变量
 	set_version_variables(SRT_VERSION ${SRT_VERSION})
+# cmake版本高于3.0.0
 else()
+	# 设置cmake policy， CMP0048允许在project()命令中直接指定版本信息
 	cmake_policy(SET CMP0048 NEW)
 	# Also sets SRT_VERSION_MAJOR, SRT_VERSION_MINOR, SRT_VERSION_PATCH
 	project(SRT VERSION ${SRT_VERSION} LANGUAGES C CXX)
 endif()
 
+# cmake版本高于3.25.1 设置cmake policy的行为为NEW; 变量的值需要在进行条件判断之前展开
 if (NOT ${CMAKE_VERSION} VERSION_LESS "3.28.1")
 	cmake_policy(SET CMP0054 NEW)
 endif ()
 
+# cmake内置模块 FindPkgConfig, 包含 pkg_check_modules()函数，用于在系统中查找和配置软件包
 include(FindPkgConfig)
 # XXX See 'if (MINGW)' condition below, may need fixing.
+# CMake内置模块，用于查找系统线程库
 include(FindThreads)
+# CMake内置模块，提供check_function_exist()函数，用于检查系统中是否存在特定的函数
 include(CheckFunctionExists)
 
 # Platform shortcuts
+# CMAKE_SYSTEM_NAME - CMake内置变量，当前操作系统的名称; 将其转换为小写，并存储在SYSNAME_LC变量中
 string(TOLOWER ${CMAKE_SYSTEM_NAME} SYSNAME_LC)
+
+# 检查是否是Apple系列操作系统，这个函数定义在haiUtil.cmake中; 如果是的话,DARWIN将被设置为true
 set_if(DARWIN	   (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 					OR (${CMAKE_SYSTEM_NAME} MATCHES "iOS")
 					OR (${CMAKE_SYSTEM_NAME} MATCHES "tvOS")
 					OR (${CMAKE_SYSTEM_NAME} MATCHES "watchOS")
 					OR (${CMAKE_SYSTEM_NAME} MATCHES "visionOS"))
+
+# 检查是否是linux系统
 set_if(LINUX       ${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+# 检查是否是BSD系统
 set_if(BSD         ${SYSNAME_LC} MATCHES "bsd$")
+# 检查是否是Windows
 set_if(MICROSOFT   WIN32 AND (NOT MINGW AND NOT CYGWIN))
 set_if(GNU_OS       ${CMAKE_SYSTEM_NAME} MATCHES "GNU") # Use GNU_OS to not confuse with gcc
 set_if(ANDROID     ${SYSNAME_LC} MATCHES "android")
 set_if(SUNOS       "${SYSNAME_LC}" MATCHES "sunos")
+
+# 检查是否是POSIX标注的Unix系统
 set_if(POSIX       LINUX OR DARWIN OR BSD OR SUNOS OR ANDROID OR (CYGWIN AND CYGWIN_USE_POSIX) OR GNU_OS)
+# 检查当前系统是否支持符号链接
 set_if(SYMLINKABLE LINUX OR DARWIN OR BSD OR SUNOS OR CYGWIN OR GNU_OS)
+# 检查cmake版本是否低于3.14.0
 set_if(NEED_DESTINATION  ${CMAKE_VERSION} VERSION_LESS "3.14.0")
 
+# CMake内置模块，定义了一组标准的安装目录变量
+# 	CMAKE_INSTALL_PREFIX : 安装根目录
+#	CMAKE_INSTALL_BINDIR : 可执行文件目录 (默认: bin)
+#	CMAKE_INSTALL_LIBDIR : 库文件目录 (默认: lib)
+# 	CMAKE_INSTALL_INCLUDEDIR : 头文件目录 (默认: include)
+# 	...
 include(GNUInstallDirs)
 
 # The CMAKE_BUILD_TYPE seems not to be always set, weird.
+
+# 是否开启DEBUG
 if (NOT DEFINED ENABLE_DEBUG)
 
 	if (CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -68,42 +103,69 @@ endif()
 # build definition. At least it is known that MSVC does it and it
 # sets _DEBUG and NDEBUG flags itself, so this shouldn't be done
 # at all in this case.
+
+# 判断是否是MSVC微软编译器，微软编译器会自动处理配置构建定义，不需要额外处理
 if (NOT MICROSOFT)
 
 	# Set CMAKE_BUILD_TYPE properly, now that you know
 	# that ENABLE_DEBUG is set as it should.
+
+	# 当ENABLE_DEBUG=2时，构建类型为RelWithDebInfo，带调试信息的发布版本
 	if (ENABLE_DEBUG EQUAL 2)
+		
+		# 构建类型为RelWithDebInfo，带调试信息的发布版本
 		set (CMAKE_BUILD_TYPE "RelWithDebInfo")
+
+		# 开启断言调试
 		if (ENABLE_ASSERT)
 			# Add _DEBUG macro if explicitly requested, to enable SRT_ASSERT().
+			# CMake内置命令，用于向编译器添加预编译定义
 			add_definitions(-D_DEBUG)
 		else()
 			add_definitions(-DNDEBUG)
 		endif()
+
+	# 当ENABLE_DEBUG=1时，构建类型为Debug
 	elseif (ENABLE_DEBUG) # 1, ON, YES, TRUE, Y, or any other non-zero number
+		
+		# 构建类型为Debug
 		set (CMAKE_BUILD_TYPE "Debug")
 
 		# Add _DEBUG macro in debug mode only, to enable SRT_ASSERT().
 		add_definitions(-D_DEBUG)
+	
+	# 默认构建类型为Release版本
 	else()
 		set (CMAKE_BUILD_TYPE "Release")
 		add_definitions(-DNDEBUG)
 	endif()
 endif()
 
+# 输出一下构建类型
 message(STATUS "BUILD TYPE: ${CMAKE_BUILD_TYPE}")
 
+# getVarsWith定义在haiUtil.cmake文件中，搜索所有以ENFORCE_开头的CMake变量，将找到的变量名存储在enforcers变量中
 getVarsWith(ENFORCE_ enforcers)
+# 
 foreach(ef ${enforcers})
+
+	# 获取变量值
 	set (val ${${ef}})
+	# 如果变量不为空，前面加上=
 	if (NOT val STREQUAL "")
 		set(val =${val})
 	endif()
+
+	# 获取ENFORCE_的长度，即前缀的长度，保存到pflen中
 	string(LENGTH ENFORCE_ pflen)
+	# 获取完整变量名的长度，保存在eflen中
 	string(LENGTH ${ef} eflen)
+	# 计算除去前缀后的长度
 	math(EXPR alen ${eflen}-${pflen})
+	# 去除ef变量的前缀
 	string(SUBSTRING ${ef} ${pflen} ${alen} ef)
 	message(STATUS "FORCED PP VARIABLE: ${ef}${val}")
+	# 添加预处理参数
 	add_definitions(-D${ef}${val})
 endforeach()
 
@@ -121,65 +183,105 @@ endforeach()
 # SRT_ENABLE_FREQUENT_LOG_TRACE 0 : set to 1 to enable printing reason for suppressed freq logs
 
 # option defaults
+
+# 默认关闭详细日志
 set(ENABLE_HEAVY_LOGGING_DEFAULT OFF)
 
 # Always turn logging on if the build type is debug
+
+# 如果时debug模式，则开启详细日志
 if (ENABLE_DEBUG)
 	set(ENABLE_HEAVY_LOGGING_DEFAULT ON)
 endif()
 
 # Note that the IP_PKTINFO  has a limited portability and may not work on some platforms
 # (Windows, FreeBSD, ...).
+
+# 默认关闭套接字选项IP_PKTINFO, 它允许从传入的数据包中提取目标IP地址
 set (ENABLE_PKTINFO_DEFAULT OFF)
 
+# 默认关闭C++11的同步功能，如果开启，会使用C++11的chrono和threads来替代pthreads来进行计时
 set(ENABLE_STDCXX_SYNC_DEFAULT OFF)
+# 默认关闭单调时钟功能，单调时钟（Monotonic Clock）是一种只会向前增长的时钟，不受系统时间调整的影响，适合用于计算时间间隔
 set(ENABLE_MONOTONIC_CLOCK_DEFAULT OFF)
+# 初始化单调时钟相关的链接库变量为空，因为默认关闭了单调时钟
 set(MONOTONIC_CLOCK_LINKLIB "")
+# 在windows平台上默认启用C++11的同步功能
 if (MICROSOFT)
 	set(ENABLE_STDCXX_SYNC_DEFAULT ON)
+# 在POSIX系统中，先测试系统是否支持单调时钟
 elseif (POSIX)
 	test_requires_clock_gettime(ENABLE_MONOTONIC_CLOCK_DEFAULT MONOTONIC_CLOCK_LINKLIB)
 endif()
 
 
 # options
+# Cygwin配置
 option(CYGWIN_USE_POSIX "Should the POSIX API be used for cygwin. Ignored if the system isn't cygwin." OFF)
+# 是否支持C++11
 if (CMAKE_CXX_COMPILER_ID MATCHES "^GNU$" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.7)
 	option(ENABLE_CXX11 "Should the c++11 parts (srt-live-transmit) be enabled" OFF)
 else()
 	option(ENABLE_CXX11 "Should the c++11 parts (srt-live-transmit) be enabled" ON)
 endif()
+# 是否构建可执行程序
 option(ENABLE_APPS "Should the Support Applications be Built?" ON)
+# 是否支持链路绑定
 option(ENABLE_BONDING "Should the bonding functionality be enabled?" OFF)
+# 是否构建测试程序
 option(ENABLE_TESTING "Should the Developer Test Applications be Built?" OFF)
+# 是否启用代码性能分析功能
 option(ENABLE_PROFILE "Should instrument the code for profiling. Ignored for non-GNU compiler." $ENV{HAI_BUILD_PROFILE})
+# 是否开启日志
 option(ENABLE_LOGGING "Should logging be enabled" ON)
+# 是否开启非常详细的日志，会导致日志非常多
 option(ENABLE_HEAVY_LOGGING "Should heavy debug logging be enabled" ${ENABLE_HEAVY_LOGGING_DEFAULT})
+# 是否启用加密模块中的日志
 option(ENABLE_HAICRYPT_LOGGING "Should logging in haicrypt be enabled" 0)
+# 是否编译为动态库
 option(ENABLE_SHARED "Should libsrt be built as a shared library" ON)
+# 是否编译为静态库
 option(ENABLE_STATIC "Should libsrt be built as a static library" ON)
+# 是否允许从传入的数据包中提取目的IP地址
 option(ENABLE_PKTINFO "Enable using IP_PKTINFO to allow the listener extracting the target IP address from incoming packets" ${ENABLE_PKTINFO_DEFAULT})
+# 是否允许应用程序使用相对路径来引用库文件
 option(ENABLE_RELATIVE_LIBPATH "Should application contain relative library paths, like ../lib" OFF)
+# 是否开启反向DNS解析
 option(ENABLE_GETNAMEINFO "In-logs sockaddr-to-string should do rev-dns" OFF)
+# 是否开启单元测试
 option(ENABLE_UNITTESTS "Enable unit tests" OFF)
+# 是否启用加密
 option(ENABLE_ENCRYPTION "Enable encryption in SRT" ON)
 option(ENABLE_AEAD_API_PREVIEW "Enable AEAD API preview in SRT" Off)
+# 是否允许控制重传带宽的最大值
 option(ENABLE_MAXREXMITBW "Enable SRTO_MAXREXMITBW (v1.6.0 API preview)" Off)
+# 是否在srt.pc中包含额外的C++库依赖
 option(ENABLE_CXX_DEPS "Extra library dependencies in srt.pc for the CXX libraries useful with C language" ON)
+# 强制将SRT库链接到静态libstdc++库
 option(USE_STATIC_LIBSTDCXX "Should use static rather than shared libstdc++" OFF)
+# 是否允许应用程序启用inet_pton共功能，将网络终端节点解析为IP地址
 option(ENABLE_INET_PTON "Set to OFF to prevent usage of inet_pton when building against modern SDKs while still requiring compatibility with older Windows versions, such as Windows XP, Windows Server 2003 etc." ON)
+# 启用代码覆盖率检测
 option(ENABLE_CODE_COVERAGE "Enable code coverage reporting" OFF)
+# 是否强制使用clock_gettime来获取当前时间，而不是gettimeofday
 option(ENABLE_MONOTONIC_CLOCK "Enforced clock_gettime with monotonic clock on GC CV" ${ENABLE_MONOTONIC_CLOCK_DEFAULT})
+# 是否使用标准的C++线程和chrono库
 option(ENABLE_STDCXX_SYNC "Use C++11 chrono and threads for timing instead of pthreads" ${ENABLE_STDCXX_SYNC_DEFAULT})
+# 是否使用pkg-config来查找Openssl库
 option(USE_OPENSSL_PC "Use pkg-config to find OpenSSL libraries" ON)
+# 静态链接/动态链接openssl库
 option(SRT_USE_OPENSSL_STATIC_LIBS "Link OpenSSL libraries statically." OFF)
+# 已更高的CPU负载为代价，实现更准确的发送时间
 option(USE_BUSY_WAITING "Enable more accurate sending times at a cost of potentially higher CPU load" OFF)
 option(USE_GNUSTL "Get c++ library/headers from the gnustl.pc" OFF)
+# 套接字设置SOCK_CLOSEXEC
 option(ENABLE_SOCK_CLOEXEC "Enable setting SOCK_CLOEXEC on a socket" ON)
+# 显示Cmake配置
 option(ENABLE_SHOW_PROJECT_CONFIG "Enable show Project Configuration" OFF)
-
+# 是否启用Cland的线程安全分析功能
 option(ENABLE_CLANG_TSA "Enable Clang Thread Safety Analysis" OFF)
 
+# 静态链接openssl
 if (DEFINED OPENSSL_USE_STATIC_LIBS AND "${OPENSSL_USE_STATIC_LIBS}" STREQUAL "ON")
 	message(WARNING "Use of OPENSSL_USE_STATIC_LIBS as SRT build option here is deprecated.
 Please use SRT_USE_OPENSSL_STATIC_LIBS instead.")
@@ -1315,16 +1417,22 @@ else()
 	message(FATAL_ERROR "Either ENABLE_STATIC or ENABLE_SHARED has to be ON!")
 endif()
 
+# 创建可执行程序，添加相关目录，但是不指定安装路径
 macro(srt_add_program_dont_install name)
+	# 添加可执行程序
 	add_executable(${name} ${ARGN})
+	# 指定可执行程序需要包含的目录
 	target_include_directories(${name} PRIVATE apps)
 	target_include_directories(${name} PRIVATE common)
 endmacro()
 
+# 创建可执行程序，并在编译完成后安装到指定路径
 macro(srt_add_program name)
+	# 创建可执行程序，添加相关目录
 	srt_add_program_dont_install(${name} ${ARGN})
+	# 指定可执行程序的安装路径
 	if(NOT NEED_DESTINATION)
-		install(TARGETS ${name} RUNTIME)
+		install(TARGETS ${name} RUNTIME) 	# 将可执行程序安装到${name}, RUNTIME表示这是一个可执行程序
 	elseif (DEFINED CMAKE_INSTALL_BINDIR)
 		install(TARGETS ${name} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 	else()
@@ -1365,6 +1473,7 @@ macro(srt_make_application name)
 	endif()
 endmacro()
 
+# 自定义宏srt_add_application，
 macro(srt_add_application name) # ARGN=sources...
 	srt_add_program(${name} apps/${name}.cpp ${ARGN})
 	srt_make_application(${name})
@@ -1388,6 +1497,7 @@ if (NOT ENABLE_CXX11)
    set(ENABLE_APPS OFF)
 endif()
 
+# 构建可执行程序
 if (ENABLE_APPS)
 
 	message(STATUS "APPS: ENABLED, std=${USE_CXX_STD_APP}")
@@ -1407,6 +1517,7 @@ if (ENABLE_APPS)
 
 	# Applications
 
+	# srt-live-transmit
 	srt_add_application(srt-live-transmit ${VIRTUAL_srtsupport})
 	if (DEFINED EXTRA_stransmit)
 		set_target_properties(srt-live-transmit PROPERTIES COMPILE_FLAGS "${EXTRA_stransmit}")
