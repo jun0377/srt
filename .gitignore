@@ -3,8 +3,11 @@ srt-file-transmit
 srt-live-transmit
 srt-tunnel
 Makefile
+srt-ffplay
 CMakeCache.txt
 CMakeFiles/*
+srt.pc
+config-status.sh
 
 # Prerequisites
 *.d
