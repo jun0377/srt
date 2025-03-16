@@ -127,25 +127,25 @@ extern "C" void TestLogHandler(void* opaque, int level, const char* file, int li
 
 struct LiveTransmitConfig
 {
-    int timeout = 0;
-    int timeout_mode = 0;
-    int chunk_size = -1;
-    bool quiet = false;
-    srt_logging::LogLevel::type loglevel = srt_logging::LogLevel::error;
-    set<srt_logging::LogFA> logfas;
-    bool log_internal;
-    string logfile;
-    int bw_report = 0;
-    bool srctime = false;
-    size_t buffering = 10;
-    int stats_report = 0;
-    string stats_out;
-    SrtStatsPrintFormat stats_pf = SRTSTATS_PROFMAT_2COLS;
-    bool auto_reconnect = true;
-    bool full_stats = false;
+    int timeout = 0;        // 超时时间，秒
+    int timeout_mode = 0;   // 超时模式
+    int chunk_size = -1;    // 单个SRT数据包的最大负载
+    bool quiet = false;     // 静默模式
+    srt_logging::LogLevel::type loglevel = srt_logging::LogLevel::error;    // 日志等级
+    set<srt_logging::LogFA> logfas; // 启用日志的功能域
+    bool log_internal;              // 是否使用内部日志
+    string logfile;                 // 日志文件路径
+    int bw_report = 0;              // 带宽报告频率
+    bool srctime = false;           // 从源传递数据包到SRT输出
+    size_t buffering = 10;          // 缓冲区中最多存放多少个SRT数据包
+    int stats_report = 0;           // 状态报告频率
+    string stats_out;               // 状态报告输出文件
+    SrtStatsPrintFormat stats_pf = SRTSTATS_PROFMAT_2COLS;  // 状态输出的格式
+    bool auto_reconnect = true;     // 自动重连
+    bool full_stats = false;        // 是否启用完整的统计信息
 
-    string source;
-    string target;
+    string source;                  // 源URI
+    string target;                  // 目的URI
 };
 
 
@@ -164,6 +164,7 @@ void PrintOptionHelp(const OptionName& opt_names, const string &value, const str
     cerr << "\t- " << desc << "\n";
 }
 
+// 命令行参数解析
 int parse_args(LiveTransmitConfig &cfg, int argc, char** argv)
 {
     const OptionName
@@ -209,14 +210,20 @@ int parse_args(LiveTransmitConfig &cfg, int argc, char** argv)
         { o_version,      OptionScheme::ARG_NONE }
     };
 
+	// 解析命令行参数，保存到map params中
     options_t params = ProcessOptions(argv, argc, optargs);
 
+	// 是否需要输出帮助信息
           bool print_help    = OptionPresent(params, o_help);
+	// 是否需要输出版本信息
     const bool print_version = OptionPresent(params, o_version);
 
+    // 必须指定的两个参数：源和目标URI
     if (params[""].size() != 2 && !print_help && !print_version)
     {
         cerr << "ERROR. Invalid syntax. Specify source and target URIs.\n";
+
+        // 没有key值的参数
         if (params[""].size() > 0)
         {
             cerr << "The following options are passed without a key: ";
@@ -226,8 +233,10 @@ int parse_args(LiveTransmitConfig &cfg, int argc, char** argv)
         print_help = true; // Enable help to print it further
     }
 
+    // 输出帮助信息
     if (print_help)
     {
+        // 拼接各个参数的帮助信息
         string helpspec = Option<OutString>(params, o_help);
 
         if (helpspec == "logging")
@@ -361,13 +370,16 @@ int parse_args(LiveTransmitConfig &cfg, int argc, char** argv)
 int main(int argc, char** argv)
 {
     srt_startup();
+    
     // This is mainly required on Windows to initialize the network system,
     // for a case when the instance would use UDP. SRT does it on its own, independently.
+    // Windows平台网络初始化，其他平台上为空实现
     if (!SysInitializeNetwork())
         throw std::runtime_error("Can't initialize network!");
 
     // Symmetrically, this does a cleanup; put into a local destructor to ensure that
     // it's called regardless of how this function returns.
+    // 程序退出时自动回收网络资源
     struct NetworkCleanup
     {
         ~NetworkCleanup()
@@ -377,7 +389,7 @@ int main(int argc, char** argv)
         }
     } cleanupobj;
 
-
+    // 直播传输相关设置
     LiveTransmitConfig cfg;
     const int parse_ret = parse_args(cfg, argc, argv);
     if (parse_ret != 0)
@@ -386,6 +398,8 @@ int main(int argc, char** argv)
     //
     // Set global config variables
     //
+
+	// 单个SRT数据包负载
     if (cfg.chunk_size > 0)
         transmit_chunk_size = cfg.chunk_size;
     transmit_stats_writer = SrtStatsWriterFactory(cfg.stats_pf);

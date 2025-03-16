@@ -142,6 +142,7 @@ sockaddr_any CreateAddr(const string& name, unsigned short port, int pref_family
     return result;
 }
 
+// 使用指定的分隔符sep拼接字符串
 string Join(const vector<string>& in, string sep)
 {
     if ( in.empty() )
@@ -189,21 +190,25 @@ OptionScheme::Args OptionName::DetermineTypeFromHelpText(const std::string& help
     return OptionScheme::ARG_NONE;
 }
 
+// 解析命令行参数，并将所有参数通过一个map返回
 options_t ProcessOptions(char* const* argv, int argc, std::vector<OptionScheme> scheme)
 {
     using namespace std;
 
-    string current_key;
-    string extra_arg;
-    size_t vals = 0;
+    string current_key; // 命令行参数-key
+    string extra_arg;   // 命令行参数-value
+    size_t vals = 0;    // 参数个数计数
     OptionScheme::Args type = OptionScheme::ARG_VAR; // This is for no-option-yet or consumed
     map<string, vector<string>> params;
-    bool moreoptions = true;
+    bool moreoptions = true;    // 是否是一个需要参数的命令行选项
 
+    // argv + 1 : 从第二个字符串开始遍历，第一个参数是程序名
     for (char* const* p = argv+1; p != argv+argc; ++p)
     {
         const char* a = *p;
         // cout << "*D ARG: '" << a << "'\n";
+
+        // 判断是否是一个合法的命令行参数选项,命令行参数必须以 '-' 开头
         bool isoption = false;
         if (a[0] == '-')
         {
@@ -213,14 +218,20 @@ options_t ProcessOptions(char* const* argv, int argc, std::vector<OptionScheme> 
             // An expression starting with a dash is not
             // an option marker if it is a single dash or
             // a negative number.
+
+            // 命令行参数为空，或者是一个'-'+数字，则认为是一个无效的命令行选项
+            // 如："-123" 这表示一个负数，而不是一个命令行选项
             if (!a[1] || isdigit(a[1]))
                 isoption = false;
         }
 
+        // 需要参数的命令行选项
         if (moreoptions && isoption)
         {
-            bool arg_specified = false;
-            size_t seppos; // (see goto, it would jump over initialization)
+            bool arg_specified = false;     // 当前参数是否已经被处理过
+            size_t seppos;                  // 分隔符索引位置，(see goto, it would jump over initialization)
+
+            // 命令行选项以 "--" 开头，则认为是一个不需要额外参数的选项，如 --verbose
             current_key = a+1;
             if ( current_key == "-" )
             {
@@ -234,20 +245,29 @@ options_t ProcessOptions(char* const* argv, int argc, std::vector<OptionScheme> 
 
             // Maintain the backward compatibility with argument specified after :
             // or with one string separated by space inside.
+
+            // 命令行参数的两种兼容写法：以:分割，-option:value 或 以空格分隔，-option value
+            
+            // 查找分割符，首先检查分隔符':',兼容空格分隔符
             seppos = current_key.find(':');
             if (seppos == string::npos)
                 seppos = current_key.find(' ');
+
+            // 分隔符前后分别为key和value,将当前参数标记为已处理
             if (seppos != string::npos)
             {
                 // Old option specification.
+                // 命令行参数-value
                 extra_arg = current_key.substr(seppos + 1);
+                // 命令行参数-key
                 current_key = current_key.substr(0, 0 + seppos);
+                // 当前参数已被处理过
                 arg_specified = true; // Prevent eating args from option list
             }
 
+            // 将当前命令行参数key和value添加到map中
             params[current_key].clear();
             vals = 0;
-
             if (extra_arg != "")
             {
                 params[current_key].push_back(extra_arg);
@@ -256,8 +276,11 @@ options_t ProcessOptions(char* const* argv, int argc, std::vector<OptionScheme> 
             }
 
             // Find the key in the scheme. If not found, treat it as ARG_NONE.
+
+            // 遍历所有自定义的命令行选项，找到当前正在处理的命令行参数
             for (const auto& s: scheme)
             {
+                // 找到了当前选项
                 if (s.names().count(current_key))
                 {
                     // cout << "*D found '" << current_key << "' in scheme type=" << int(s.type) << endl;
@@ -265,6 +288,8 @@ options_t ProcessOptions(char* const* argv, int argc, std::vector<OptionScheme> 
                     // -v:0 or "-v 0", then consider the argument specified and
                     // treat further arguments as either no-option arguments or
                     // new options.
+
+                    // 当前选项不需要参数，或参数成功处理
                     if (s.type == OptionScheme::ARG_NONE || arg_specified)
                     {
                         // Anyway, consider it already processed.
@@ -272,6 +297,7 @@ options_t ProcessOptions(char* const* argv, int argc, std::vector<OptionScheme> 
                     }
                     type = s.type;
 
+                    // 只需要一个参数，并且参数已解析
                     if ( vals == 1 && type == OptionScheme::ARG_ONE )
                     {
                         // Argument for one-arg option already consumed,

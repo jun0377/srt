@@ -148,6 +148,7 @@ struct OutList
     static type process(const options_t::mapped_type& i) { return i; }
 };
 
+// 使用空格拼接字符串
 struct OutString
 {
     typedef std::string type;
@@ -205,29 +206,38 @@ struct OutBool
 
 struct OptionName;
 
+// 命令行参数的选项方案
 struct OptionScheme
 {
+    // 选项名称
     const OptionName* pid;
+    // 选项参数方案：无参数/一个参数/可变参数
     enum Args { ARG_NONE, ARG_ONE, ARG_VAR } type;
 
+    // 默认拷贝构造函数
     OptionScheme(const OptionScheme&) = default;
+    // 移动构造函数，虽然实现了移动语义，但是并没有清空源对象的状态，因为此类所有的成员都可以被安全共享
     OptionScheme(OptionScheme&& src)
         : pid(src.pid)
         , type(src.type)
     {
     }
 
+    // 基本构造函数
     OptionScheme(const OptionName& id, Args tp);
 
+    // 获取所有参数别名
     const std::set<std::string>& names() const;
 };
 
+// 用户可配置的参数
 struct OptionName
 {
-    std::string helptext;
-    std::string main_name;
-    std::set<std::string> names;
+    std::string helptext;           // 帮助信息
+    std::string main_name;          // 选项名称
+    std::set<std::string> names;    // 所有的选项别名，可定义多个选项别名，便于用户理解
 
+    // 基本构造函数
     template <class... Args>
     OptionName(std::string ht, std::string first, Args... rest)
         : helptext(ht), main_name(first),
@@ -235,6 +245,7 @@ struct OptionName
     {
     }
 
+    // 带选项方案的构造函数
     template <class... Args>
     OptionName(std::vector<OptionScheme>& sc, OptionScheme::Args type,
             std::string ht, std::string first, Args... rest)
@@ -244,6 +255,7 @@ struct OptionName
         sc.push_back(OptionScheme(*this, type));
     }
 
+    // 带参数自动类型推导的构造函数
     template <class... Args>
     OptionName(std::vector<OptionScheme>& sc,
             std::string ht, std::string first, Args... rest)
@@ -254,8 +266,10 @@ struct OptionName
         sc.push_back(OptionScheme(*this, type));
     }
 
+    // 初始化列表构造函数，可一次初始化多个选项别名
     OptionName(std::initializer_list<std::string> args): main_name(*args.begin()), names(args) {}
 
+    // 类型转换运算符重载
     operator std::set<std::string>() { return names; }
     operator const std::set<std::string>() const { return names; }
 
@@ -320,6 +334,7 @@ typename OutType::type Option(const options_t& options, const OptionName& oname)
     return out_t();
 }
 
+// 从map中查找指定选项
 inline bool OptionPresent(const options_t& options, const std::set<std::string>& keys)
 {
     for (auto key: keys)
