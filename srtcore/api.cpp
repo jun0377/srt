@@ -363,6 +363,8 @@ int srt::CUDTUnited::cleanup()
     // stream that the user's app has bound to it, and which got destroyed
     // together with already exited main() - may be already deleted when
     // executing this procedure.
+
+	
     ScopedLock gcinit(m_InitLock);
 
     if (--m_iInstanceCount > 0)

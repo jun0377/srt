@@ -40,10 +40,10 @@ struct SrtStatsTableInit
 {
     SrtStatsTableInit(vector<unique_ptr<SrtStatData>>& s)
     {
-        STATX(GEN, time, Time, msTimeStamp);
+        STATX(GEN, time, Time, msTimeStamp);                // 时间戳
 
-        STAT(WINDOW, flow, pktFlowWindow);
-        STAT(WINDOW, congestion, pktCongestionWindow);
+        STAT(WINDOW, flow, pktFlowWindow);                  // 
+        STAT(WINDOW, congestion, pktCongestionWindow);      // 拥塞窗口
         STAT(WINDOW, flight, pktFlightSize);
 
         STAT(LINK, rtt, msRTT);
@@ -97,7 +97,7 @@ string srt_json_cat_names [] = {
 };
 
 #ifdef HAVE_CXX_STD_PUT_TIME
-// Follows ISO 8601
+// Follows ISO 8601,生成符合ISO 8601标准的时间戳字符串
 std::string SrtStatsWriter::print_timestamp()
 {
     using namespace std;
@@ -109,6 +109,8 @@ std::string SrtStatsWriter::print_timestamp()
     std::ostringstream output;
 
     // SysLocalTime returns zeroed tm_now on failure, which is ok for put_time.
+
+    // 转换为本地时间
     const tm tm_now = SysLocalTime(time_now);
     output << std::put_time(&tm_now, "%FT%T.") << std::setfill('0') << std::setw(6);
     const auto    since_epoch = systime_now.time_since_epoch();
@@ -127,16 +129,19 @@ string SrtStatsWriter::print_timestamp()
 #endif // HAVE_CXX_STD_PUT_TIME
 
 
+// JSON格式的状态信息
 class SrtStatsJson : public SrtStatsWriter
 {
+    // 生成JSON格式的键名，其实就是简单加上双引号
     static string quotekey(const string& name)
     {
         if (name == "")
             return "";
 
-        return R"(")" + name + R"(":)";
+        return R"(")" + name + R"(":)"; // 原始字符串字面量
     }
 
+    // 生成JSON格式的字符串，其实就是简单加上双引号
     static string quote(const string& name)
     {
         if (name == "")
@@ -146,10 +151,12 @@ class SrtStatsJson : public SrtStatsWriter
     }
 
 public: 
+    // 生成JSON格式的状态信息
     string WriteStats(int sid, const CBytePerfMon& mon) override
     {
         std::ostringstream output;
 
+        // 换行符和制表符,是否启用JSON格式的美化输出
         string pretty_cr, pretty_tab;
         if (Option("pretty"))
         {
@@ -160,14 +167,20 @@ public:
         SrtStatCat cat = SSC_GEN;
 
         // Do general manually
+
+        // 类别名称
         output << quotekey(srt_json_cat_names[cat]) << "{" << pretty_cr;
 
         // SID is displayed manually
+        
+        // 流ID
         output << pretty_tab << quotekey("sid") << sid;
 
         // Extra Timepoint is also displayed manually
 #ifdef HAVE_CXX_STD_PUT_TIME
         // NOTE: still assumed SSC_GEN category
+
+        // 时间戳
         output << "," << pretty_cr << pretty_tab
             << quotekey("timepoint") << quote(print_timestamp());
 #endif
@@ -175,6 +188,7 @@ public:
         // Now continue with fields as specified in the table
         for (auto& i: g_SrtStatsTable)
         {
+            // 相同类别的状态信息
             if (i->category == cat)
             {
                 output << ","; // next item in same cat
@@ -183,6 +197,7 @@ public:
                 if (cat != SSC_GEN)
                     output << pretty_tab;
             }
+            // 不同类别的状态信息
             else
             {
                 if (cat != SSC_GEN)
@@ -197,12 +212,15 @@ public:
                 if (cat != SSC_GEN)
                     output << pretty_tab;
 
+                // 类别名称
                 output << quotekey(srt_json_cat_names[cat]) << "{" << pretty_cr << pretty_tab;
                 if (cat != SSC_GEN)
                     output << pretty_tab;
             }
 
             // Print the current field
+
+            // 显示输出
             output << quotekey(i->name);
             i->PrintValue(output, mon);
         }
@@ -313,6 +331,7 @@ public:
     }
 };
 
+// 工厂方法，根据输入的格式创建相应的状态写入器
 shared_ptr<SrtStatsWriter> SrtStatsWriterFactory(SrtStatsPrintFormat printformat)
 {
     switch (printformat)

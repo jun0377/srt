@@ -296,9 +296,13 @@ static const int SRT_LIVE_MAX_PLSIZE = 1456; // MTU(1500) - UDP.hdr(28) - SRT.hd
 static const int SRT_LIVE_DEF_LATENCY_MS = 120;
 
 // Importrant note: please add new fields to this structure to the end and don't remove any existing fields 
+
+// 性能监视数据
 struct CBytePerfMon
 {
    // global measurements
+
+   // 全局测量数据
    int64_t  msTimeStamp;                // time since the UDT entity is started, in milliseconds
    int64_t  pktSentTotal;               // total number of sent data packets, including retransmissions
    int64_t  pktRecvTotal;               // total number of received packets
@@ -324,6 +328,8 @@ struct CBytePerfMon
    //<
 
    // local measurements
+
+   // 本地测量数据
    int64_t  pktSent;                    // number of sent data packets, including retransmissions
    int64_t  pktRecv;                    // number of received packets
    int      pktSndLoss;                 // number of lost packets (sender side)
@@ -354,6 +360,8 @@ struct CBytePerfMon
    //<
 
    // instant measurements
+
+   // 即时测量数据
    double   usPktSndPeriod;             // packet sending period, in microseconds
    int      pktFlowWindow;              // flow window size, in number of packets
    int      pktCongestionWindow;        // congestion window size, in number of packets

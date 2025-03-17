@@ -127,10 +127,10 @@ extern "C" void TestLogHandler(void* opaque, int level, const char* file, int li
 
 struct LiveTransmitConfig
 {
-    int timeout = 0;        // 超时时间，秒
-    int timeout_mode = 0;   // 超时模式
-    int chunk_size = -1;    // 单个SRT数据包的最大负载
-    bool quiet = false;     // 静默模式
+    int timeout = 0;        			// 超时时间，秒
+    int timeout_mode = 0;   			// 超时模式
+    int chunk_size = -1;    			// 单个SRT数据包的最大负载
+    bool quiet = false;     			// 静默模式
     srt_logging::LogLevel::type loglevel = srt_logging::LogLevel::error;    // 日志等级
     set<srt_logging::LogFA> logfas; // 启用日志的功能域
     bool log_internal;              // 是否使用内部日志

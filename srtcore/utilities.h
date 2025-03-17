@@ -625,6 +625,7 @@ auto map_get(Map& m, const Key& key, typename Map::mapped_type def = typename Ma
     return it == m.end() ? def : it->second;
 }
 
+// 获取map中key对应的value的指针
 template<typename Map, typename Key>
 auto map_getp(Map& m, const Key& key) -> typename Map::mapped_type*
 {
