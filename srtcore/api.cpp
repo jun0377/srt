@@ -4749,18 +4749,21 @@ SRT_SOCKSTATUS getsockstate(SRTSOCKET u)
 namespace srt
 {
 
+// 日志等级
 void setloglevel(LogLevel::type ll)
 {
     ScopedLock gg(srt_logger_config.mutex);
     srt_logger_config.max_level = ll;
 }
 
+// 启用指定的功能域，不影响其它功能域
 void addlogfa(LogFA fa)
 {
     ScopedLock gg(srt_logger_config.mutex);
     srt_logger_config.enabled_fa.set(fa, true);
 }
 
+// 禁用指定的功能域
 void dellogfa(LogFA fa)
 {
     ScopedLock gg(srt_logger_config.mutex);
@@ -4774,6 +4777,7 @@ void resetlogfa(set<LogFA> fas)
         srt_logger_config.enabled_fa.set(i, fas.count(i));
 }
 
+// 启用指定的功能域，关闭其它功能域
 void resetlogfa(const int* fara, size_t fara_size)
 {
     ScopedLock gg(srt_logger_config.mutex);
@@ -4795,6 +4799,7 @@ void setloghandler(void* opaque, SRT_LOG_HANDLER_FN* handler)
     srt_logger_config.loghandler_fn     = handler;
 }
 
+// 是否显示时间/线程名/日志等级，是否换行
 void setlogflags(int flags)
 {
     ScopedLock gg(srt_logger_config.mutex);

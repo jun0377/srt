@@ -40,7 +40,7 @@
 using namespace std;
 using namespace srt;
 
-bool g_stats_are_printed_to_stdout = false;
+bool g_stats_are_printed_to_stdout = false;                 // SRT状态信息打印到标准输出
 bool transmit_total_stats = false;
 unsigned long transmit_bw_report = 0;
 unsigned long transmit_stats_report = 0;

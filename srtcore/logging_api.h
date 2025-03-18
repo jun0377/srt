@@ -40,10 +40,10 @@ written by
 #define SRT_LOG_LEVEL_MAX LOG_DEBUG
 
 // Flags
-#define SRT_LOGF_DISABLE_TIME 1
-#define SRT_LOGF_DISABLE_THREADNAME 2
-#define SRT_LOGF_DISABLE_SEVERITY 4
-#define SRT_LOGF_DISABLE_EOL 8
+#define SRT_LOGF_DISABLE_TIME 1             // 不显示时间
+#define SRT_LOGF_DISABLE_THREADNAME 2       // 不显示线程名
+#define SRT_LOGF_DISABLE_SEVERITY 4         // 不显示日志级别
+#define SRT_LOGF_DISABLE_EOL 8              // 禁用换行符
 
 // Handler type.
 typedef void SRT_LOG_HANDLER_FN(void* opaque, int level, const char* file, int line, const char* area, const char* message);
@@ -53,6 +53,7 @@ namespace srt_logging
 {
 
 
+// 日志功能域
 struct LogFA
 {
 private:
@@ -84,6 +85,7 @@ namespace LogLevel
     //    - note: a significant, but rarely occurring event
     //    - debug: may occur even very often and enabling it can harm performance
 
+    // 日志等级
     enum type
     {
         fatal = LOG_CRIT,

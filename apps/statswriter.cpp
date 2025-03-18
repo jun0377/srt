@@ -245,6 +245,7 @@ public:
     }
 };
 
+// csv格式的状态信息
 class SrtStatsCsv : public SrtStatsWriter
 {
 private:
@@ -301,6 +302,7 @@ public:
     }
 };
 
+// 两列格式的状态信息
 class SrtStatsCols : public SrtStatsWriter
 {
 public: 

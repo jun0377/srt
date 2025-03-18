@@ -117,10 +117,11 @@ struct LogConfig
     std::ostream* log_stream;
     // 日志处理函数
     SRT_LOG_HANDLER_FN* loghandler_fn;
+    // 日志处理函数所需的参数
     void* loghandler_opaque;
     // 线程安全
     mutable srt::sync::Mutex mutex;
-    int flags;
+    int flags;             // 是否显示时间/线程名/日志等级，是否换行
 
     LogConfig(const fa_bitset_t& efa,
             LogLevel::type l = LogLevel::warning,

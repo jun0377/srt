@@ -345,6 +345,7 @@ void srt_setloglevel(int ll)
     UDT::setloglevel(srt_logging::LogLevel::type(ll));
 }
 
+// 启用指定的功能域
 void srt_addlogfa(int fa)
 {
     UDT::addlogfa(srt_logging::LogFA(fa));
@@ -355,6 +356,7 @@ void srt_dellogfa(int fa)
     UDT::dellogfa(srt_logging::LogFA(fa));
 }
 
+// 启用指定的功能域，关闭其它功能域
 void srt_resetlogfa(const int* fara, size_t fara_size)
 {
     UDT::resetlogfa(fara, fara_size);
@@ -365,6 +367,7 @@ void srt_setloghandler(void* opaque, SRT_LOG_HANDLER_FN* handler)
     UDT::setloghandler(opaque, handler);
 }
 
+// 是否显示时间/线程名/日志等级，是否换行
 void srt_setlogflags(int flags)
 {
     UDT::setlogflags(flags);

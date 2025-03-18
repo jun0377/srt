@@ -55,6 +55,7 @@ UriParser::~UriParser(void)
 {
 }
 
+// URI序列化: proto://host:port/path?key1=value1&key2=value2...
 string UriParser::makeUri()
 {
     // Reassemble parts into the URI
@@ -193,6 +194,7 @@ static string url_decode(const string& str)
     return ret;
 }
 
+// proto://host:port/path?key1=value1&key2=value2...
 void UriParser::Parse(const string& strUrl, DefaultExpect exp)
 {
     int iQueryStart = -1;

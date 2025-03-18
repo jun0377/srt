@@ -100,8 +100,8 @@ struct AlarmExit: public std::runtime_error
     }
 };
 
-srt::sync::atomic<bool> int_state;
-srt::sync::atomic<bool> timer_state;
+srt::sync::atomic<bool> int_state;      // 中断状态
+srt::sync::atomic<bool> timer_state;    // 超时中断状态
 void OnINT_ForceExit(int)
 {
     Verb() << "\n-------- REQUESTED INTERRUPT!\n";
@@ -402,6 +402,8 @@ int main(int argc, char** argv)
 	// 单个SRT数据包负载
     if (cfg.chunk_size > 0)
         transmit_chunk_size = cfg.chunk_size;
+
+    // SRT状态统计
     transmit_stats_writer = SrtStatsWriterFactory(cfg.stats_pf);
     transmit_bw_report = cfg.bw_report;
     transmit_stats_report = cfg.stats_report;
@@ -410,8 +412,8 @@ int main(int argc, char** argv)
     //
     // Set SRT log levels and functional areas
     //
-    srt_setloglevel(cfg.loglevel);
-    if (!cfg.logfas.empty())
+    srt_setloglevel(cfg.loglevel);  // 日志等级
+    if (!cfg.logfas.empty())        // 启用指定的功能域日志，禁用其它功能域
     {
         srt_resetlogfa(nullptr, 0);
         for (set<srt_logging::LogFA>::iterator i = cfg.logfas.begin(); i != cfg.logfas.end(); ++i)
@@ -423,16 +425,20 @@ int main(int argc, char** argv)
     //
     std::ofstream logfile_stream; // leave unused if not set
     char NAME[] = "SRTLIB";
+
+    // 使用自定义的日志处理函数，日志不会写入文件
     if (cfg.log_internal)
     {
+        // 禁止显示时间/线程名/日志等级，因为自定义的日志处理函数TestLogHandler自行实现了相同的处理逻辑
         srt_setlogflags(0
             | SRT_LOGF_DISABLE_TIME
             | SRT_LOGF_DISABLE_SEVERITY
             | SRT_LOGF_DISABLE_THREADNAME
             | SRT_LOGF_DISABLE_EOL
         );
-        srt_setloghandler(NAME, TestLogHandler);
+        srt_setloghandler(NAME, TestLogHandler);    // 自定义的日志处理函数
     }
+    // 使用SRT日志系统时，日志写入文件
     else if (!cfg.logfile.empty())
     {
         logfile_stream.open(cfg.logfile.c_str());
@@ -451,6 +457,8 @@ int main(int argc, char** argv)
     // SRT stats output
     //
     std::ofstream logfile_stats; // leave unused if not set
+
+    // 状态统计文件
     if (cfg.stats_out != "")
     {
         logfile_stats.open(cfg.stats_out.c_str());
@@ -460,6 +468,7 @@ int main(int argc, char** argv)
             logfile_stats.close();
         }
     }
+    // 如果没有指定状态统计文件，将SRT状态信息输出到标准输出
     else if (cfg.bw_report != 0 || cfg.stats_report != 0)
     {
         g_stats_are_printed_to_stdout = true;
@@ -478,7 +487,7 @@ int main(int argc, char** argv)
 #else
     if (cfg.timeout > 0)
     {
-        signal(SIGALRM, OnAlarm_Interrupt);
+        signal(SIGALRM, OnAlarm_Interrupt);     // watch dog
         if (!cfg.quiet)
             cerr << "TIMEOUT: will interrupt after " << cfg.timeout << "s\n";
         alarm(cfg.timeout);
@@ -517,7 +526,7 @@ int main(int argc, char** argv)
 
     try {
         // Now loop until broken
-        while (!int_state && !timer_state)
+        while (!int_state && !timer_state)  // 没有被中断或超时
         {
             if (!src.get())
             {
@@ -893,10 +902,12 @@ int main(int argc, char** argv)
 
 // Class utilities
 
-
+// 自定义的日志处理函数
 void TestLogHandler(void* opaque, int level, const char* file, int line, const char* area, const char* message)
 {
     char prefix[100] = "";
+
+    // 日志前缀
     if ( opaque ) {
 #ifdef _MSC_VER
         strncpy_s(prefix, sizeof(prefix), (char*)opaque, _TRUNCATE);
@@ -905,9 +916,11 @@ void TestLogHandler(void* opaque, int level, const char* file, int line, const c
         prefix[sizeof(prefix) - 1] = '\0';
 #endif
     }
+
+    // 时间戳
     time_t now;
     time(&now);
-    char buf[1024];
+    char buf[1024];     // 限制了日志长度
     struct tm local = SysLocalTime(now);
     size_t pos = strftime(buf, 1024, "[%c ", &local);
 

@@ -1085,6 +1085,7 @@ public:
     int64_t overdrift() const { return m_qOverdrift; }
 };
 
+// 模板类，为std::map提供一个代理访问接口，简化std::map的使用方法
 template <class KeyType, class ValueType>
 struct MapProxy
 {
@@ -1093,21 +1094,25 @@ struct MapProxy
 
     MapProxy(std::map<KeyType, ValueType>& m, const KeyType& k): mp(m), key(k) {}
 
+    // 赋值
     void operator=(const ValueType& val)
     {
         mp[key] = val;
     }
 
+    // 查找
     typename std::map<KeyType, ValueType>::iterator find()
     {
         return mp.find(key);
     }
 
+    // 查找const
     typename std::map<KeyType, ValueType>::const_iterator find() const
     {
         return mp.find(key);
     }
 
+    // 类型转换，取值
     operator ValueType() const
     {
         typename std::map<KeyType, ValueType>::const_iterator p = find();
@@ -1116,6 +1121,7 @@ struct MapProxy
         return p->second;
     }
 
+    // 取值失败时返回默认值
     ValueType deflt(const ValueType& defval) const
     {
         typename std::map<KeyType, ValueType>::const_iterator p = find();
@@ -1124,6 +1130,7 @@ struct MapProxy
         return p->second;
     }
 
+    // 判断是否存在
     bool exists() const
     {
         return find() != mp.end();

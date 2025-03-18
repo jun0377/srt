@@ -17,8 +17,8 @@ namespace srt_logging
 {
     struct AllFaOn
     {
-        LogConfig::fa_bitset_t allfa;
-        AllFaOn();
+        LogConfig::fa_bitset_t allfa;   // 功能域位图
+        AllFaOn();                      // 开启所有功能域的日志
     };
 
     extern Logger gglog;
