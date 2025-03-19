@@ -28,22 +28,28 @@ extern unsigned long transmit_bw_report;
 extern unsigned long transmit_stats_report;
 extern unsigned long transmit_chunk_size;
 
+// 媒体包
 struct MediaPacket
 {
     bytevector payload;
     int64_t time = 0;
 
+    // 移动构造函数
     MediaPacket(bytevector&& src) : payload(std::move(src)) {}
     MediaPacket(bytevector&& src, int64_t stime) : payload(std::move(src)), time(stime) {}
 
+    // 构建一个指定大小的空包
     MediaPacket(size_t payload_size) : payload(payload_size), time(0) {}
+    // 拷贝
     MediaPacket(const bytevector& src) : payload(src) {}
     MediaPacket(const bytevector& src, int64_t stime) : payload(src), time(stime) {}
+    // 默认构造
     MediaPacket() {}
 };
 
 extern std::shared_ptr<SrtStatsWriter> transmit_stats_writer;
 
+// URI
 class Location
 {
 public:
@@ -51,13 +57,14 @@ public:
     Location() {}
 };
 
+// 源
 class Source: public Location
 {
 public:
     virtual int  Read(size_t chunk, MediaPacket& pkt, std::ostream &out_stats = std::cout) = 0;
     virtual bool IsOpen() = 0;
     virtual bool End() = 0;
-    static std::unique_ptr<Source> Create(const std::string& url);
+    static std::unique_ptr<Source> Create(const std::string& url);      // notice: static
     virtual void Close() {}
     virtual ~Source() {}
 

@@ -691,6 +691,7 @@ public:
 };
 
 // A primitive one-argument versions of Sprint and Printable
+// 格式化字符串，将任意类型的数据转换为字符串
 template <class Arg1>
 inline std::string Sprint(const Arg1& arg)
 {

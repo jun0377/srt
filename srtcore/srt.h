@@ -286,13 +286,16 @@ typedef enum SRT_TRANSTYPE
 // exceed the size that fits in a single MTU.
 
 // This is for MPEG TS and it's a default SRTO_PAYLOADSIZE for SRTT_LIVE.
+// SRT live模式下的默认负载大小,MPEG TS包大小固定为188byte，7个TS包组成一个SRT包，这个大小不会导致UDP分片
 static const int SRT_LIVE_DEF_PLSIZE = 1316; // = 188*7, recommended for MPEG TS
 
 // This is the maximum payload size for Live mode, should you have a different
 // payload type than MPEG TS.
+// SRT file模式下的负载大小，固定为1456byte
 static const int SRT_LIVE_MAX_PLSIZE = 1456; // MTU(1500) - UDP.hdr(28) - SRT.hdr(16)
 
 // Latency for Live transmission: default is 120
+// SRT latehcy,默认为120ms
 static const int SRT_LIVE_DEF_LATENCY_MS = 120;
 
 // Importrant note: please add new fields to this structure to the end and don't remove any existing fields 

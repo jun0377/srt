@@ -375,6 +375,7 @@ int srt::CUDTUnited::cleanup()
     return 0;
 }
 
+// 根据 m_SocketIDGenerator 和 m_SocketIDGenerator_init 生成一个新的socket ID
 SRTSOCKET srt::CUDTUnited::generateSocketID(bool for_group)
 {
     ScopedLock guard(m_IDLock);
@@ -478,6 +479,7 @@ SRTSOCKET srt::CUDTUnited::generateSocketID(bool for_group)
     return sockval;
 }
 
+// 创建UDT socket
 SRTSOCKET srt::CUDTUnited::newSocket(CUDTSocket** pps)
 {
     // XXX consider using some replacement of std::unique_ptr

@@ -27,22 +27,27 @@ const char* const SocketOption::mode_names[3] = {
     "listener", "caller", "rendezvous"
 };
 
+// 根据host和adapter判断SRT工作模式
 SocketOption::Mode SrtInterpretMode(const string& modestr, const string& host, const string& adapter)
 {
     SocketOption::Mode mode = SocketOption::FAILURE;
 
+    // caller
     if (modestr == "client" || modestr == "caller")
     {
         mode = SocketOption::CALLER;
     }
+    // listener
     else if (modestr == "server" || modestr == "listener")
     {
         mode = SocketOption::LISTENER;
     }
+    // rednezvous
     else if (modestr == "rendezvous")
     {
         mode = SocketOption::RENDEZVOUS;
     }
+    // default模式时，根据host判断SRT到底工作于何种模式
     else if (modestr == "default")
     {
         // Use the following convention:

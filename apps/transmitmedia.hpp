@@ -35,20 +35,26 @@ class SrtCommon
 {
 protected:
 
+    // send / recv
     bool m_output_direction = false; //< Defines which of SND or RCV option variant should be used, also to set SRT_SENDER for output
     int m_timeout = 0; //< enforces using SRTO_SNDTIMEO or SRTO_RCVTIMEO, depending on @a m_output_direction
     bool m_tsbpdmode = true;
-    int m_outgoing_port = 0;
-    string m_mode;
-    string m_adapter;
+    int m_outgoing_port = 0;        // 出站端口
+    string m_mode;                  // "caller" or "listener"
+    string m_adapter;               // 网口名称，如："eth0"
     map<string, string> m_options; // All other options, as provided in the URI
-    SRTSOCKET m_sock = SRT_INVALID_SOCK;
-    SRTSOCKET m_bindsock = SRT_INVALID_SOCK;
+    SRTSOCKET m_sock = SRT_INVALID_SOCK;        // 主套接字
+    SRTSOCKET m_bindsock = SRT_INVALID_SOCK;    // 监听套接字
+
+    // 套接字是否可用
     bool IsUsable() { SRT_SOCKSTATUS st = srt_getsockstate(m_sock); return st > SRTS_INIT && st < SRTS_BROKEN; }
+    // 套接字是否异常
     bool IsBroken() { return srt_getsockstate(m_sock) > SRTS_CONNECTED; }
 
 public:
+    // 解析参数，保存到map m_options中: mode, blocking, timeout, adapter
     void InitParameters(string host, map<string,string> par);
+    // 开始listen
     void PrepareListener(string host, int port, int backlog);
     void StealFrom(SrtCommon& src);
     bool AcceptNewClient();
@@ -64,6 +70,8 @@ protected:
     void Init(string host, int port, map<string,string> par, bool dir_output);
 
     virtual int ConfigurePost(SRTSOCKET sock);
+
+    // srt setsockopt
     virtual int ConfigurePre(SRTSOCKET sock);
 
     void OpenClient(string host, int port);
@@ -81,7 +89,7 @@ protected:
     virtual ~SrtCommon();
 };
 
-
+// SrtSource
 class SrtSource: public Source, public SrtCommon
 {
     std::string hostport_copy;
@@ -132,6 +140,7 @@ public:
 
     SrtTarget() {}
 
+    // srt setsockopt
     int ConfigurePre(SRTSOCKET sock) override;
     int Write(const char* data, size_t size, int64_t src_time, ostream &out_stats = cout) override;
     bool IsOpen() override { return IsUsable(); }

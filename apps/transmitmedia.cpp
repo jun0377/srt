@@ -109,6 +109,7 @@ Iface* CreateFile(const string& name) { return new typename File<Iface>::type (n
 
 shared_ptr<SrtStatsWriter> transmit_stats_writer;
 
+// 从host中解析参数，保存到map中
 void SrtCommon::InitParameters(string host, map<string,string> par)
 {
     // Application-specific options: mode, blocking, timeout, adapter
@@ -121,6 +122,7 @@ void SrtCommon::InitParameters(string host, map<string,string> par)
         }
     }
 
+    // 绑定网口，即指定使用哪个网口或IP/端口
     if (par.count("bind"))
     {
         string bindspec = par.at("bind");
@@ -145,11 +147,14 @@ void SrtCommon::InitParameters(string host, map<string,string> par)
         adapter = par.at("adapter");
     }
 
+    // listener or caller
     m_mode = "default";
     if (par.count("mode"))
     {
         m_mode = par.at("mode");
     }
+
+    // 根据host和adapter来判断SRT到底工作于何种模式
     SocketOption::Mode mode = SrtInterpretMode(m_mode, host, adapter);
     if (mode == SocketOption::FAILURE)
     {
@@ -192,6 +197,8 @@ void SrtCommon::InitParameters(string host, map<string,string> par)
 
     // That's kinda clumsy, but it must rely on the defaults.
     // Default mode is live, so check if the file mode was enforced
+
+    // 检查SRT负载大小，确保live模式下一个SRT包的大小不会超过MTU
     if ((par.count("transtype") == 0 || par["transtype"] != "file")
         && transmit_chunk_size > SRT_LIVE_DEF_PLSIZE)
     {
@@ -205,6 +212,7 @@ void SrtCommon::InitParameters(string host, map<string,string> par)
     m_options = par;
 }
 
+// 开始listen
 void SrtCommon::PrepareListener(string host, int port, int backlog)
 {
     m_bindsock = srt_create_socket();
@@ -342,6 +350,7 @@ int SrtCommon::ConfigurePost(SRTSOCKET sock)
     return 0;
 }
 
+// srt setsockopt
 int SrtCommon::ConfigurePre(SRTSOCKET sock)
 {
     int result = 0;
@@ -699,8 +708,22 @@ template <class Iface> struct Srt;
 template <> struct Srt<Source> { typedef SrtSource type; };
 template <> struct Srt<Target> { typedef SrtTarget type; };
 
+// template，创建SrtSource或SrtTarget
 template <class Iface>
-Iface* CreateSrt(const string& host, int port, const map<string,string>& par) { return new typename Srt<Iface>::type (host, port, par); }
+Iface* CreateSrt(const string& host, int port, const map<string,string>& par)
+{ 
+    return new typename Srt<Iface>::type (host, port, par); 
+
+    /*
+        Source:
+            return new typename Srt<Source>::type(host, port, par);
+             -> return new typename SrtSource::type(host, port, prt);
+
+        Target
+            return new typename Srt<Target>::type(host, port, par);
+             -> return new typename SrtTarget::type(host, port, par);
+    */
+}
 
 class ConsoleSource: public Source
 {
@@ -1164,12 +1187,15 @@ template <> struct Rtp<Target> { typedef RtpTarget type; };
 template <class Iface>
 Iface* CreateRtp(const string& host, int port, const map<string,string>& par) { return new typename Rtp<Iface>::type (host, port, par); }
 
+// source设置output为false
 template<class Base>
 inline bool IsOutput() { return false; }
 
+// target设置output为true
 template<>
 inline bool IsOutput<Target>() { return true; }
 
+// template 创建源或目的
 template <class Base>
 extern unique_ptr<Base> CreateMedium(const string& uri)
 {
@@ -1182,7 +1208,11 @@ extern unique_ptr<Base> CreateMedium(const string& uri)
     {
     default:
         break; // do nothing, return nullptr
+
+    // 文件流
     case UriParser::FILE:
+
+        // 使用控制台标准输入/输出作为源或目的
         if (u.host() == "con" || u.host() == "console")
         {
             if (IsOutput<Base>() && (
@@ -1202,8 +1232,10 @@ extern unique_ptr<Base> CreateMedium(const string& uri)
 #endif
         break;
 
+    // SRT流
     case UriParser::SRT:
         iport = atoi(u.port().c_str());
+        // 禁止使用知名端口
         if ( iport < 1024 )
         {
             cerr << "Port value invalid: " << iport << " - must be >=1024\n";
@@ -1212,7 +1244,7 @@ extern unique_ptr<Base> CreateMedium(const string& uri)
         ptr.reset( CreateSrt<Base>(u.host(), iport, u.parameters()) );
         break;
 
-
+    // UDP流
     case UriParser::UDP:
         iport = atoi(u.port().c_str());
         if ( iport < 1024 )
@@ -1223,6 +1255,7 @@ extern unique_ptr<Base> CreateMedium(const string& uri)
         ptr.reset( CreateUdp<Base>(u.host(), iport, u.parameters()) );
         break;
 
+    // RTP流
     case UriParser::RTP:
         if (IsOutput<Base>())
         {
@@ -1246,11 +1279,13 @@ extern unique_ptr<Base> CreateMedium(const string& uri)
 }
 
 
+// 创建源
 std::unique_ptr<Source> Source::Create(const std::string& url)
 {
     return CreateMedium<Source>(url);
 }
 
+// 创建目标
 std::unique_ptr<Target> Target::Create(const std::string& url)
 {
     return CreateMedium<Target>(url);

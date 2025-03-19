@@ -400,6 +400,8 @@ private:
     /// @param group The socket id should be for socket group.
     /// @return The new socket ID.
     /// @throw CUDTException if after rolling over all possible ID values nothing can be returned
+
+    // 根据 m_SocketIDGenerator 和 m_SocketIDGenerator_init 生成一个新的socket ID
     SRTSOCKET generateSocketID(bool group = false);
 
 private:
@@ -419,6 +421,7 @@ private:
 
     sync::Mutex m_IDLock; // used to synchronize ID generation
 
+    // m_SocketIDGenerator 和 m_SocketIDGenerator_init 用于生成一个新的socket ID
     SRTSOCKET m_SocketIDGenerator;      // seed to generate a new unique socket ID
     SRTSOCKET m_SocketIDGenerator_init; // Keeps track of the very first one
 
