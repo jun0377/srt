@@ -823,23 +823,26 @@ static inline bool IsMulticast(in_addr adr)
     return c >= 224 && c <= 239;
 }
 
-
+// UDP Common Class
 class UdpCommon
 {
 protected:
-    int m_sock = -1;
-    string adapter;
-    sockaddr_any        interface_addr;
-    sockaddr_any        target_addr;
-    bool                is_multicast = false;
-    map<string, string> m_options;
+    int m_sock = -1;                            // UDP Socket
+    string adapter;                             // interface, such as: "eth0" "ens33"...
+    sockaddr_any        interface_addr;         // local address
+    sockaddr_any        target_addr;            // target address
+    bool                is_multicast = false; 
+    map<string, string> m_options;              // UDP options
 
+    // Create a UDP socket and set sockopt
     void Setup(string host, int port, map<string,string> attr)
     {
+        // Create a UDP socket
         m_sock = (int)socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
         if (m_sock == -1)
             Error(SysError(), "UdpCommon::Setup: socket");
 
+        // reuse addr
         int yes = 1;
         ::setsockopt(m_sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&yes, sizeof yes);
 
@@ -855,11 +858,14 @@ protected:
             Error(SysError(), "UdpCommon::Setup: ioctl FIONBIO");
         }
 
+        // local address
         interface_addr = CreateAddr("", port, AF_INET);
+        
+        // target address
         target_addr = CreateAddr(host, port);
 
+        // multicase
         is_multicast = false;
-
         if (attr.count("multicast"))
         {
             // XXX: Here provide support for IPv6 multicast #1479
@@ -939,6 +945,8 @@ protected:
 
         // The "ttl" options is handled separately, it maps to both IP_TTL
         // and IP_MULTICAST_TTL so that TTL setting works for both uni- and multicast.
+
+        // set sockopt ttl
         if (attr.count("ttl"))
         {
             int ttl = stoi(attr.at("ttl"));
@@ -992,15 +1000,17 @@ protected:
     }
 };
 
-
+// UDP Source, recv from outside uri
 class UdpSource: public Source, public UdpCommon
 {
 protected:
     bool eof = true;
 public:
 
+    // Create a UDP socket and bind to the local address
     UdpSource(string host, int port, const map<string,string>& attr)
     {
+        // Create a UDP socket and set sockopt
         Setup(host, port, attr);
 
         // On Windows it somehow doesn't work when bind()
@@ -1028,6 +1038,8 @@ public:
 #endif
         Verb("UDP:", is_multicast ? "Multicast" : "Unicast", "(", sysname,
                 "): will bind to: ", baddr.str());
+
+        // system bind
         int stat = ::bind(m_sock, baddr.get(), baddr.size());
 
         if (stat == -1)
@@ -1035,16 +1047,22 @@ public:
         eof = false;
     }
 
+    // Read a chunk of data from the UDP socket, save to pkt, also with timestamp
     int Read(size_t chunk, MediaPacket& pkt, ostream & ignored SRT_ATR_UNUSED = cout) override
     {
+        // resize save space for data
         if (pkt.payload.size() < chunk)
             pkt.payload.resize(chunk);
 
+        // peer address
         sockaddr_any sa(target_addr.family());
         socklen_t si = sa.size();
+        
+        // read UDP socket, nonblock
         int stat = recvfrom(m_sock, pkt.payload.data(), (int) chunk, 0, sa.get(), &si);
         if (stat < 1)
         {
+            // 当错误不是 EWOULDBLOCK 时，说明真正发生了错误，设置eof为true
             if (SysError() != EWOULDBLOCK)
                 eof = true;
             pkt.payload.clear();
@@ -1054,6 +1072,8 @@ public:
 
         // Save this time to potentially use it for SRT target.
         pkt.time = srt_time_now();
+
+        // 优化内存使用，有必要吗？
         chunk = size_t(stat);
         if (chunk < pkt.payload.size())
             pkt.payload.resize(chunk);
@@ -1061,12 +1081,16 @@ public:
         return stat;
     }
 
+    // socket ready?
     bool IsOpen() override { return m_sock != -1; }
+    // socket broken ?
     bool End() override { return eof; }
 
+    // return system socket
     int GetSysSocket() const override { return m_sock; };
 };
 
+// UDP Target, send to outside uri
 class UdpTarget: public Target, public UdpCommon
 {
 public:
@@ -1075,7 +1099,10 @@ public:
         if (host.empty())
             cerr << "\nWARN Host for UDP target is not provided. Will send to localhost:" << port << ".\n";
 
+        // Create a UDP socket, set sockopt, nonblock
         Setup(host, port, attr);
+        
+        // 多播模式，并且制定了使用哪个本地网口
         if (is_multicast && interface_addr.isany() == false)
         {
             if (interface_addr.family() != AF_INET)
@@ -1094,6 +1121,7 @@ public:
 
     }
 
+    // Send data 
     int Write(const char* data, size_t len, int64_t src_time SRT_ATR_UNUSED,  ostream & ignored SRT_ATR_UNUSED = cout) override
     {
         int stat = sendto(m_sock, data, (int)len, 0, target_addr.get(), target_addr.size());
@@ -1106,9 +1134,12 @@ public:
         return stat;
     }
 
+    // socket ready?
     bool IsOpen() override { return m_sock != -1; }
+    // socket broken? for send socket, always return false
     bool Broken() override { return false; }
 
+    // return system socket
     int GetSysSocket() const override { return m_sock; };
 };
 
@@ -1116,8 +1147,24 @@ template <class Iface> struct Udp;
 template <> struct Udp<Source> { typedef UdpSource type; };
 template <> struct Udp<Target> { typedef UdpTarget type; };
 
+// UDP Source or Target
 template <class Iface>
-Iface* CreateUdp(const string& host, int port, const map<string,string>& par) { return new typename Udp<Iface>::type (host, port, par); }
+Iface* CreateUdp(const string& host, int port, const map<string,string>& par)
+{ 
+    return new typename Udp<Iface>::type (host, port, par);
+    
+    /*
+        UDP Source:
+            return new typename Udp<Iface>::type (host, port, par);
+                -> return new typename Udp<Source>::type (host, port, par);
+                    -> return new UdpSource(host, port, par);
+
+        UDP Target:
+            return new typename Udp<Iface>::type (host, port, par);
+                -> return new typename Udp<Target>::type (host, port, par);
+                    -> return new typename UdpTarget (host, port, par);
+    */
+}
 
 class RtpSource: public UdpSource
 {
@@ -1195,12 +1242,13 @@ inline bool IsOutput() { return false; }
 template<>
 inline bool IsOutput<Target>() { return true; }
 
-// template 创建源或目的
+// template create Source or Target
 template <class Base>
 extern unique_ptr<Base> CreateMedium(const string& uri)
 {
     unique_ptr<Base> ptr;
 
+    // uri parse
     UriParser u(uri);
 
     int iport = 0;
@@ -1279,13 +1327,13 @@ extern unique_ptr<Base> CreateMedium(const string& uri)
 }
 
 
-// 创建源
+// Source Create
 std::unique_ptr<Source> Source::Create(const std::string& url)
 {
     return CreateMedium<Source>(url);
 }
 
-// 创建目标
+// Target Create
 std::unique_ptr<Target> Target::Create(const std::string& url)
 {
     return CreateMedium<Target>(url);

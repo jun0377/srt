@@ -84,11 +84,14 @@ int inet_pton(int af, const char * src, void * dst)
 }
 #endif // _WIN32 && !HAVE_INET_PTON
 
+// Create sockaddr_any address
 sockaddr_any CreateAddr(const string& name, unsigned short port, int pref_family)
 {
     // Handle empty name.
     // If family is specified, empty string resolves to ANY of that family.
     // If not, it resolves to IPv4 ANY (to specify IPv6 any, use [::]).
+    
+    // ip any
     if (name == "")
     {
         sockaddr_any result(pref_family == AF_INET6 ? pref_family : AF_INET);
@@ -96,6 +99,7 @@ sockaddr_any CreateAddr(const string& name, unsigned short port, int pref_family
         return result;
     }
 
+    // IPv6 Perferred,优先尝试IPv6
     bool first6 = pref_family != AF_INET;
     int families[2] = {AF_INET6, AF_INET};
     if (!first6)
@@ -104,6 +108,7 @@ sockaddr_any CreateAddr(const string& name, unsigned short port, int pref_family
         families[1] = AF_INET6;
     }
 
+    // 按优先级尝试解析IP地址
     for (int i = 0; i < 2; ++i)
     {
         int family = families[i];
@@ -116,6 +121,8 @@ sockaddr_any CreateAddr(const string& name, unsigned short port, int pref_family
             return result;
         }
     }
+
+    // 由于inet_pton无法处理域名格式的地址，如：www.baidu.com，因此尝试使用getaddrinfo进行域名和服务器类型的转换
 
     // If not, try to resolve by getaddrinfo
     // This time, use the exact value of pref_family

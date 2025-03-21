@@ -528,6 +528,7 @@ int main(int argc, char** argv)
         // Now loop until broken
         while (!int_state && !timer_state)  // 没有被中断或超时
         {
+            // Create Source
             if (!src.get())
             {
                 src = Source::Create(cfg.source);

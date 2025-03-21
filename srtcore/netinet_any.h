@@ -30,6 +30,8 @@ written by
 namespace srt
 {
 
+// 替代所有的套接字地址类型：sockaddr / sockaddr_in / sockaddr_in6
+// 提供了一种类型安全的方式来同时处理IPv4和IPv6地址,避免了在不同套接字地址结构之间进行类型转换时的类型违规问题
 struct sockaddr_any
 {
     union

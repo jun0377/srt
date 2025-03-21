@@ -5,9 +5,7 @@
     --enable-stdc++-sync \
     --enable-apps \
     --enable-bonding \
-    --enable-logging \
-    --enable-heavy-logging \
     --cmake-install-prefix=$(pwd)/build \
-
+    --enable-logging \
 
 cd .. && make -j$(nproc) && cd -

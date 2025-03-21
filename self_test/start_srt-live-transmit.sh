@@ -8,7 +8,7 @@ function_srt()
         srt://:4201 \
         -verbose \
         -fullstats \
-        -loglevel debug \
+        -loglevel info \
         -stats-report-frequency 1 \
         -bandwidth-report 1 \
         -timeout 0 \
@@ -16,6 +16,8 @@ function_srt()
         -chunk 1456 \
         -buffering 10 \
         >/dev/null &
+
+            
 }
 
 function_ffmpeg()
