@@ -118,6 +118,7 @@ public:
     bool IsOpen() override { return IsUsable(); }
     bool End() override { return IsBroken(); }
 
+    // get SRT socket, not system UDP socket
     SRTSOCKET GetSRTSocket() const override
     { 
         SRTSOCKET socket = SrtCommon::Socket();
@@ -155,6 +156,7 @@ public:
         return bytes;
     }
 
+    // get SRT socket, not system UDP socket
     SRTSOCKET GetSRTSocket() const override
     { 
         SRTSOCKET socket = SrtCommon::Socket();

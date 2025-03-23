@@ -536,7 +536,7 @@ private:
    int m_iIDSeed;                            // seed to generate a new ID
    srt::sync::Mutex m_SeedLock;
 
-   std::map<int, CEPollDesc> m_mPolls;       // all epolls
+   std::map<int, CEPollDesc> m_mPolls;       // all epolls instance
    mutable srt::sync::Mutex m_EPollLock;
 };
 

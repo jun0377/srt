@@ -1086,7 +1086,7 @@ public:
     // socket broken ?
     bool End() override { return eof; }
 
-    // return system socket
+    // get system UDP socket
     int GetSysSocket() const override { return m_sock; };
 };
 

@@ -417,6 +417,7 @@ struct DynamicStruct
 /// Fixed-size array template class.
 namespace srt {
 
+// 固定大小的数组模板类
 template <class T>
 class FixedArray
 {

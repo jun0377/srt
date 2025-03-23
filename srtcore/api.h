@@ -377,6 +377,7 @@ public:
     }
 #endif
 
+    // 返回UDT Epoll实例引用
     CEPoll& epoll_ref() { return m_EPoll; }
 
 private:

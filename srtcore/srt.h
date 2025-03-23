@@ -727,12 +727,23 @@ enum SRT_EPOLL_FLAGS
     /// This allows the EID container to be empty when calling the waiting
     /// function with infinite time. This means an infinite hangup, although
     /// a socket can be added to this EID from a separate thread.
+
+    /*
+        - 允许在epoll_wait时使用空的 EID 容器
+        - 当未指定超时时间时，这会导致epoll_wait无限阻塞
+    */
     SRT_EPOLL_ENABLE_EMPTY = 1,
 
     /// This makes the waiting function check if there is output container
     /// passed to it, and report an error if it isn't. By default it is allowed
     /// that the output container is 0 size or NULL and therefore the readiness
     /// state is reported only as a number of ready sockets from return value.
+
+    /*
+        - 使epoll_wait检查输出容器是否为空
+        - 当未指定输出容器时，这会导致epoll_wait返回错误
+        - 默认不设置此flag, 允许输出容器为NULL,此时只能通过检查返回值中已就绪socket数量来进行判断
+    */
     SRT_EPOLL_ENABLE_OUTPUTCHECK = 2
 };
 

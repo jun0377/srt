@@ -911,16 +911,17 @@ inline std::string FormatDuration(const steady_clock::duration& dur)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+// 事件类，用于跨线程的事件通知机制
 class CGlobEvent
 {
 public:
     /// Triggers the event and notifies waiting threads.
     /// Simply calls notify_one().
-    static void triggerEvent();
+    static void triggerEvent();     // 触发事件并通知等待的线程
 
     /// Waits for the event to be triggered with 10ms timeout.
     /// Simply calls wait_for().
-    static bool waitForEvent();
+    static bool waitForEvent();     // 等待事件触发，超时时间为10ms
 };
 
 ////////////////////////////////////////////////////////////////////////////////

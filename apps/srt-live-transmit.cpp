@@ -518,25 +518,28 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    size_t receivedBytes = 0;
-    size_t wroteBytes = 0;
-    size_t lostBytes = 0;
-    size_t lastReportedtLostBytes = 0;
+    size_t receivedBytes = 0;                           // 从Source读取的字节数
+    size_t wroteBytes = 0;                              // 向Target写的字节数
+    size_t lostBytes = 0;                               // 向Target写，丢包字节数
+    size_t lastReportedtLostBytes = 0;                  // 向Target下，上一次记录的丢包字节数
     std::time_t writeErrorLogTimer(std::time(nullptr));
 
     try {
         // Now loop until broken
         while (!int_state && !timer_state)  // 没有被中断或超时
         {
-            // Create Source
+            // Create Source, add to epoll instance and wait for readable event 
             if (!src.get())
             {
+                // UDP Source: Create UDP socket, bind to local port, start recviving
                 src = Source::Create(cfg.source);
                 if (!src.get())
                 {
                     cerr << "Unsupported source type" << endl;
                     return 1;
                 }
+
+                // Readable event
                 int events = SRT_EPOLL_IN | SRT_EPOLL_ERR;
 
                 switch (src->uri.type())
@@ -552,6 +555,8 @@ int main(int argc, char** argv)
                     break;
                 case UriParser::UDP:
                 case UriParser::RTP:
+
+                    // add system UDP socket to epoll instance
                     if (srt_epoll_add_ssock(pollid,
                         src->GetSysSocket(), &events))
                     {
@@ -581,6 +586,8 @@ int main(int argc, char** argv)
                 receivedBytes = 0;
             }
 
+            // Create Target, add to epoll instance and wait for readable/writable event
+            // 添加可读事件只是为了获取连接状态，并不是用于实际的数据读取
             if (!tar.get())
             {
                 tar = Target::Create(cfg.target);

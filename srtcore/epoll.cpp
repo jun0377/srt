@@ -552,6 +552,8 @@ int srt::CEPoll::uwait(const int eid, SRT_EPOLL_EVENT* fdsSet, int fdsSize, int6
 int srt::CEPoll::wait(const int eid, set<SRTSOCKET>* readfds, set<SRTSOCKET>* writefds, int64_t msTimeOut, set<SYSSOCKET>* lrfds, set<SYSSOCKET>* lwfds)
 {
     // if all fields is NULL and waiting time is infinite, then this would be a deadlock
+
+    // 参数检查
     if (!readfds && !writefds && !lrfds && !lwfds && (msTimeOut < 0))
         throw CUDTException(MJ_NOTSUP, MN_INVAL, 0);
 
@@ -569,6 +571,7 @@ int srt::CEPoll::wait(const int eid, set<SRTSOCKET>* readfds, set<SRTSOCKET>* wr
         {
             ScopedLock epollock(m_EPollLock);
 
+            // find epoll instance from map
             map<int, CEPollDesc>::iterator p = m_mPolls.find(eid);
             if (p == m_mPolls.end())
             {
@@ -576,8 +579,10 @@ int srt::CEPoll::wait(const int eid, set<SRTSOCKET>* readfds, set<SRTSOCKET>* wr
                 throw CUDTException(MJ_NOTSUP, MN_EIDINVAL);
             }
 
+            // epoll instance found
             CEPollDesc& ed = p->second;
 
+            // 不允许使用空的EID容器 && 没有订阅的事件 && 没有关注的系统socket
             if (!ed.flags(SRT_EPOLL_ENABLE_EMPTY) && ed.watch_empty() && ed.m_sLocals.empty())
             {
                 // Empty EID is not allowed, report error.
@@ -586,29 +591,38 @@ int srt::CEPoll::wait(const int eid, set<SRTSOCKET>* readfds, set<SRTSOCKET>* wr
                 throw CUDTException(MJ_NOTSUP, MN_EEMPTY, 0);
             }
 
+            // 检查输出EID容器是否为空
             if (ed.flags(SRT_EPOLL_ENABLE_OUTPUTCHECK))
             {
                 // Empty report is not allowed, report error.
+
+                // 有关注的系统socket,但是没有提供输出系统套接字状态的容器，报错
                 if (!ed.m_sLocals.empty() && (!lrfds || !lwfds))
                     throw CUDTException(MJ_NOTSUP, MN_INVAL);
 
+                // 有关注的SRT socket,但是没有提供输出SRT套接字状态的容器，报错
                 if (!ed.watch_empty() && (!readfds || !writefds))
                     throw CUDTException(MJ_NOTSUP, MN_INVAL);
             }
 
             IF_HEAVY_LOGGING(int total_noticed = 0);
             IF_HEAVY_LOGGING(ostringstream debug_sockets);
+
             // Sockets with exceptions are returned to both read and write sets.
+            // 已触发的事件，异常事件会同时添加到read和write事件中
             for (CEPollDesc::enotice_t::iterator it = ed.enotice_begin(), it_next = it; it != ed.enotice_end(); it = it_next)
             {
                 ++it_next;
                 IF_HEAVY_LOGGING(++total_noticed);
+
+                // readable/error events
                 if (readfds && ((it->events & SRT_EPOLL_IN) || (it->events & SRT_EPOLL_ERR)))
                 {
                     if (readfds->insert(it->fd).second)
                         ++total;
                 }
 
+                // writable/error events
                 if (writefds && ((it->events & SRT_EPOLL_OUT) || (it->events & SRT_EPOLL_ERR)))
                 {
                     if (writefds->insert(it->fd).second)
@@ -620,6 +634,7 @@ int srt::CEPoll::wait(const int eid, set<SRTSOCKET>* readfds, set<SRTSOCKET>* wr
                         << IF_DIRNAME(it->events, SRT_EPOLL_OUT, "W")
                         << IF_DIRNAME(it->events, SRT_EPOLL_ERR, "E"));
 
+                // 边缘触发，通知一次即可，通知后删除
                 if (ed.checkEdge(it)) // NOTE: potentially erases 'it'.
                 {
                     IF_HEAVY_LOGGING(debug_sockets << "!");
@@ -629,13 +644,14 @@ int srt::CEPoll::wait(const int eid, set<SRTSOCKET>* readfds, set<SRTSOCKET>* wr
             HLOGC(ealog.Debug, log << "CEPoll::wait: REPORTED " << total << "/" << total_noticed
                     << debug_sockets.str());
 
+            // 检查是否有需要处理的系统socket,对于系统socket,需要调用系统epoll_wait
             if ((lrfds || lwfds) && !ed.m_sLocals.empty())
             {
 #ifdef LINUX
                 const int max_events = ed.m_sLocals.size();
                 SRT_ASSERT(max_events > 0);
                 srt::FixedArray<epoll_event> ev(max_events);
-                int nfds = ::epoll_wait(ed.m_iLocalID, ev.data(), ev.size(), 0);
+                int nfds = ::epoll_wait(ed.m_iLocalID, ev.data(), ev.size(), 0);    // system epoll_wait
 
                 IF_HEAVY_LOGGING(const int prev_total = total);
                 for (int i = 0; i < nfds; ++ i)
@@ -732,12 +748,16 @@ int srt::CEPoll::wait(const int eid, set<SRTSOCKET>* readfds, set<SRTSOCKET>* wr
         if (total > 0)
             return total;
 
+        // timeout
         if ((msTimeOut >= 0) && (count_microseconds(srt::sync::steady_clock::now() - entertime) >= msTimeOut * int64_t(1000)))
         {
             HLOGC(ealog.Debug, log << "EID:" << eid << ": TIMEOUT.");
             throw CUDTException(MJ_AGAIN, MN_XMTIMEOUT, 0);
         }
 
+        // 阻塞当前线程，等待事件发生，超时时间10ms
+        // 当没有epoll事件发生时，暂时让出CPU，避免忙等
+        // 唤醒时机：当有新的epoll事件发生时 / 当socket状态发生变换时 / 当有数据可读写时
         const bool wait_signaled SRT_ATR_UNUSED = CGlobEvent::waitForEvent();
         HLOGC(ealog.Debug, log << "CEPoll::wait: EVENT WAITING: "
             << (wait_signaled ? "TRIGGERED" : "CHECKPOINT"));
