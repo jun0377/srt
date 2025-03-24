@@ -135,6 +135,7 @@ public:
     }
 
 
+    // SRT Socket状态
     SRT_ATTR_GUARDED_BY(m_ControlLock)
     sync::atomic<SRT_SOCKSTATUS> m_Status; //< current socket state
 
@@ -167,6 +168,7 @@ private:
     CUDT m_UDT; //< internal SRT socket logic
 
 public:
+    // 等待accept建立连接的套接字队列
     std::map<SRTSOCKET, sockaddr_any> m_QueuedSockets; //< set of connections waiting for accept()
 
     sync::Condition m_AcceptCond; //< used to block "accept" call
@@ -408,7 +410,7 @@ private:
 private:
     typedef std::map<SRTSOCKET, CUDTSocket*> sockets_t; // stores all the socket structures
     
-    // 所有的套接字
+    // 保存所有的套接字
     SRT_ATTR_GUARDED_BY(m_GlobControlLock)
     sockets_t m_Sockets;
 

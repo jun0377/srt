@@ -423,11 +423,12 @@ inline void releaseMutex(Mutex&) {}
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+// 条件变量
 class Condition
 {
 public:
-    Condition();
-    ~Condition();
+    Condition();    // linux上是个空实现
+    ~Condition();   // 空实现
 
 public:
     /// These functions do not align with C++11 version. They are here hopefully as a temporal solution
@@ -440,6 +441,8 @@ public:
     /// or a spurious wakeup occurs.
     ///
     /// @param lock Corresponding mutex locked by UniqueLock
+
+    // 阻塞等待唤醒
     void wait(UniqueLock& lock);
 
     /// Atomically releases lock, blocks the current executing thread, 
@@ -457,6 +460,8 @@ public:
     /// Calling this function if lock.mutex() is not the same mutex as the one
     /// used by all other threads that are currently waiting on the same
     /// condition variable is undefined behavior.
+
+    // 带有超时时间的阻塞等待
     bool wait_for(UniqueLock& lock, const steady_clock::duration& rel_time);
 
     /// Causes the current thread to block until the condition variable is notified,
@@ -611,6 +616,8 @@ private:
 
 // This class is used for condition variable combined with mutex by different ways.
 // This should provide a cleaner API around locking with debug-logging inside.
+
+// 条件变量和互斥锁的组合封装类
 class CSync
 {
 protected:

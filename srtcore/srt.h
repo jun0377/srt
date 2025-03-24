@@ -154,7 +154,7 @@ typedef enum SRT_SOCKSTATUS {
    SRTS_INIT = 1,
    SRTS_OPENED,
    SRTS_LISTENING,
-   SRTS_CONNECTING,
+   SRTS_CONNECTING,         // 正在建立连接
    SRTS_CONNECTED,
    SRTS_BROKEN,
    SRTS_CLOSING,
@@ -423,13 +423,13 @@ enum CodeMajor
 {
     MJ_UNKNOWN    = -1,
     MJ_SUCCESS    =  0,
-    MJ_SETUP      =  1,
+    MJ_SETUP      =  1,     // 永久性错误，需要重建SRT Listen Socket
     MJ_CONNECTION =  2,
     MJ_SYSTEMRES  =  3,
     MJ_FILESYSTEM =  4,
     MJ_NOTSUP     =  5,
-    MJ_AGAIN      =  6,
-    MJ_PEERERROR  =  7
+    MJ_AGAIN      =  6,     // 临时错误，可重试；比如非阻塞模式下等待建立连接
+    MJ_PEERERROR  =  7      // 
 };
 
 enum CodeMinor

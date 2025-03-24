@@ -626,19 +626,23 @@ int main(int argc, char** argv)
             int sysrfdslen = 2;
             SYSSOCKET sysrfds[2];
 
+            // 等待SRT socket事件，srtrwfds[0-1]存储读事件的SRT socket，srtrwfds[2-3]存储写事件的SRT socket
             if (srt_epoll_wait(pollid,
                 &srtrwfds[0], &srtrfdslen, &srtrwfds[2], &srtwfdslen,
                 100,
                 &sysrfds[0], &sysrfdslen, 0, 0) >= 0)
             {
                 bool doabort = false;
+
+                // 处理SRT socket事件
                 for (size_t i = 0; i < sizeof(srtrwfds) / sizeof(SRTSOCKET); i++)
                 {
                     SRTSOCKET s = srtrwfds[i];
                     if (s == SRT_INVALID_SOCK)
                         continue;
 
-                    // Remove duplicated sockets
+                    // Remove duplicated sockets,删除重复触发的socket
+                    // 如果一个socket同时注册了可读/可写事件，那么当读写事件同时发生时，在返回数组中，同一个socket会出现两次
                     for (size_t j = i + 1; j < sizeof(srtrwfds) / sizeof(SRTSOCKET); j++)
                     {
                         const SRTSOCKET next_s = srtrwfds[j];
@@ -646,6 +650,7 @@ int main(int argc, char** argv)
                             srtrwfds[j] = SRT_INVALID_SOCK;
                     }
 
+                    // 判断是Source还是Target
                     bool issource = false;
                     if (src && src->GetSRTSocket() == s)
                     {
@@ -658,9 +663,11 @@ int main(int argc, char** argv)
 
                     const char * dirstring = (issource) ? "source" : "target";
 
+                    // SRT Socket状态
                     SRT_SOCKSTATUS status = srt_getsockstate(s);
                     switch (status)
                     {
+                    // 监听套接字
                     case SRTS_LISTENING:
                     {
                         const bool res = (issource) ?
@@ -673,6 +680,7 @@ int main(int argc, char** argv)
                             break;
                         }
 
+                        // 当监听socket接受新的连接后，就不再关注此监听套接字的状态了
                         srt_epoll_remove_usock(pollid, s);
 
                         SRTSOCKET ns = (issource) ?

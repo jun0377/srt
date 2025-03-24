@@ -99,6 +99,7 @@ srt::CUDTSocket::~CUDTSocket()
     releaseMutex(m_ControlLock);
 }
 
+// 获取Srt Socket状态
 SRT_SOCKSTATUS srt::CUDTSocket::getStatus()
 {
     // TTL in CRendezvousQueue::updateConnStatus() will set m_bConnecting to false.
@@ -109,7 +110,7 @@ SRT_SOCKSTATUS srt::CUDTSocket::getStatus()
     if (m_UDT.m_bBroken)
         return SRTS_BROKEN;
 
-    // Connecting timed out
+    // Connecting timed out，连接超时
     if ((m_Status == SRTS_CONNECTING) && !m_UDT.m_bConnecting && !m_UDT.m_bConnected)
         return SRTS_BROKEN;
 
@@ -964,6 +965,7 @@ int srt::CUDTUnited::installConnectHook(const SRTSOCKET u, srt_connect_callback_
     return 0;
 }
 
+// 获取SRT Socket状态
 SRT_SOCKSTATUS srt::CUDTUnited::getStatus(const SRTSOCKET u)
 {
     // protects the m_Sockets structure
@@ -1128,6 +1130,7 @@ SRTSOCKET srt::CUDTUnited::accept_bond(const SRTSOCKET listeners[], int lsize, i
     return accept(lsn, ((sockaddr*)&dummy), (&outlen));
 }
 
+// 接受新的连接
 SRTSOCKET srt::CUDTUnited::accept(const SRTSOCKET listen, sockaddr* pw_addr, int* pw_addrlen)
 {
     if (pw_addr && !pw_addrlen)
@@ -1136,8 +1139,10 @@ SRTSOCKET srt::CUDTUnited::accept(const SRTSOCKET listen, sockaddr* pw_addr, int
         throw CUDTException(MJ_NOTSUP, MN_INVAL, 0);
     }
 
+    // 从map中查找和SRT Listen Socket对应的UDT Socket
     CUDTSocket* ls = locateSocket(listen);
 
+    // 查找失败
     if (ls == NULL)
     {
         LOGC(cnlog.Error, log << "srt_accept: invalid listener socket ID value: " << listen);
@@ -1145,6 +1150,7 @@ SRTSOCKET srt::CUDTUnited::accept(const SRTSOCKET listen, sockaddr* pw_addr, int
     }
 
     // the "listen" socket must be in LISTENING status
+    // SRT Listen Socket没有处于LISTENING状态
     if (ls->m_Status != SRTS_LISTENING)
     {
         LOGC(cnlog.Error, log << "srt_accept: socket @" << listen << " is not in listening state (forgot srt_listen?)");
@@ -1166,20 +1172,26 @@ SRTSOCKET srt::CUDTUnited::accept(const SRTSOCKET listen, sockaddr* pw_addr, int
     bool      accepted = false;
 
     // !!only one connection can be set up each time!!
+
+    // 等待新的连接，每次只处理一个新的连接
     while (!accepted)
     {
         UniqueLock accept_lock(ls->m_AcceptLock);
         CSync      accept_sync(ls->m_AcceptCond, accept_lock);
 
+        // SRT Listen Socket状态异常，设置accepted为true，退出循环
         if ((ls->m_Status != SRTS_LISTENING) || ls->core().m_bBroken)
         {
             // This socket has been closed.
             accepted = true;
         }
+        // 有新的连接，处理之
         else if (ls->m_QueuedSockets.size() > 0)
         {
+            // 每次从队列中取出一个连接
             map<SRTSOCKET, sockaddr_any>::iterator b = ls->m_QueuedSockets.begin();
 
+            // 检查是否有足够的空间来保存新连接的地址信息
             if (pw_addr != NULL && pw_addrlen != NULL)
             {
                 // Check if the length of the buffer to fill the name in
@@ -1194,35 +1206,44 @@ SRTSOCKET srt::CUDTUnited::accept(const SRTSOCKET listen, sockaddr* pw_addr, int
             }
 
             u = b->first;
-            ls->m_QueuedSockets.erase(b);
+            ls->m_QueuedSockets.erase(b);   // 从队列中删除
             accepted = true;
         }
+        // 非阻塞模式建立连接，如果没有待处理的连接，不应该阻塞等待
         else if (!ls->core().m_config.bSynRecving)
         {
             accepted = true;
         }
 
+        // 阻塞模式等待连接，没有新的连接，阻塞等待
         if (!accepted && (ls->m_Status == SRTS_LISTENING))
             accept_sync.wait();
 
+        // 到所有待处理连接都处理完毕后，清除SRT Listen Socket的SRT_EPOLL_ACCEPT状态
         if (ls->m_QueuedSockets.empty())
             m_EPoll.update_events(listen, ls->core().m_sPollID, SRT_EPOLL_ACCEPT, false);
     }
 
+    // 检查SRT Socket是否为无效值：
+    //  1. 非阻塞模式下，没有新的连接，SRT Socket为无效值
+    //  2. SRT Listen Socket已经关闭，SRT Socket为无效值
     if (u == CUDT::INVALID_SOCK)
     {
         // non-blocking receiving, no connection available
+        // 非阻塞模式，没有新的连接，无效值，抛出 MJ_AGAIN 异常
         if (!ls->core().m_config.bSynRecving)
         {
             LOGC(cnlog.Error, log << "srt_accept: no pending connection available at the moment");
             throw CUDTException(MJ_AGAIN, MN_RDAVAIL, 0);
         }
 
+        // SRT Listen Socket已经关闭，无效值，抛出 MJ_SETUP 异常
         LOGC(cnlog.Error, log << "srt_accept: listener socket @" << listen << " is already closed");
         // listening socket is closed
         throw CUDTException(MJ_SETUP, MN_CLOSED, 0);
     }
 
+    // 找到对应的UDT Socket
     CUDTSocket* s = locateSocket(u);
     if (s == NULL)
     {
@@ -1231,6 +1252,7 @@ SRTSOCKET srt::CUDTUnited::accept(const SRTSOCKET listen, sockaddr* pw_addr, int
     }
 
     // Set properly the SRTO_GROUPCONNECT flag
+    // 是否启用套接字组
     s->core().m_config.iGroupConnect = 0;
 
     // Check if LISTENER has the SRTO_GROUPCONNECT flag set,
@@ -1262,6 +1284,7 @@ SRTSOCKET srt::CUDTUnited::accept(const SRTSOCKET listen, sockaddr* pw_addr, int
 
     ScopedLock cg(s->m_ControlLock);
 
+    // 输出参数，对端地址
     if (pw_addr != NULL && pw_addrlen != NULL)
     {
         memcpy((pw_addr), s->m_PeerAddr.get(), s->m_PeerAddr.size());
@@ -2575,6 +2598,7 @@ int srt::CUDTUnited::epoll_release(const int eid)
     return m_EPoll.release(eid);
 }
 
+// 从map中查找和SRT Socket对应的UDT Socket
 srt::CUDTSocket* srt::CUDTUnited::locateSocket(const SRTSOCKET u, ErrorHandling erh)
 {
     ScopedLock  cg(m_GlobControlLock);
@@ -2590,6 +2614,7 @@ srt::CUDTSocket* srt::CUDTUnited::locateSocket(const SRTSOCKET u, ErrorHandling 
 }
 
 // [[using locked(m_GlobControlLock)]];
+// 从map中查找和SRT Socket对应的UDT Socket
 srt::CUDTSocket* srt::CUDTUnited::locateSocket_LOCKED(SRTSOCKET u)
 {
     sockets_t::iterator i = m_Sockets.find(u);
@@ -3722,6 +3747,7 @@ SRTSOCKET srt::CUDT::accept_bond(const SRTSOCKET listeners[], int lsize, int64_t
     }
 }
 
+// 接受新的连接
 SRTSOCKET srt::CUDT::accept(SRTSOCKET u, sockaddr* addr, int* addrlen)
 {
     try
@@ -4414,6 +4440,7 @@ vector<SRTSOCKET> srt::CUDT::existingSockets()
     return out;
 }
 
+// 获取SRT Socket状态
 SRT_SOCKSTATUS srt::CUDT::getsockstate(SRTSOCKET u)
 {
     try

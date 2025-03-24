@@ -826,11 +826,13 @@ private:
 
     // Internal state
     sync::atomic<bool> m_bListening;             // If the UDT entity is listening to connection
+    // 正在建立连接
     sync::atomic<bool> m_bConnecting;            // The short phase when connect() is called but not yet completed
+    // 连接是否建立成功
     sync::atomic<bool> m_bConnected;             // Whether the connection is on or off
     sync::atomic<bool> m_bClosing;               // If the UDT entity is closing
     sync::atomic<bool> m_bShutdown;              // If the peer side has shutdown the connection
-    // 连接断开
+    // 连接异常
     sync::atomic<bool> m_bBroken;                // If the connection has been broken
     sync::atomic<bool> m_bBreakAsUnstable;       // A flag indicating that the socket should become broken because it has been unstable for too long.
     sync::atomic<bool> m_bPeerHealth;            // If the peer status is normal

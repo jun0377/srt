@@ -258,6 +258,7 @@ void SrtCommon::StealFrom(SrtCommon& src)
     src.m_sock = SRT_INVALID_SOCK; // STEALING
 }
 
+// 接受新的连接
 bool SrtCommon::AcceptNewClient()
 {
     sockaddr_any scl;
