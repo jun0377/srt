@@ -519,9 +519,9 @@ int main(int argc, char** argv)
     }
 
     size_t receivedBytes = 0;                           // 从Source读取的字节数
-    size_t wroteBytes = 0;                              // 向Target写的字节数
+    size_t wroteBytes = 0;                              // 向Target写成功的字节数
     size_t lostBytes = 0;                               // 向Target写，丢包字节数
-    size_t lastReportedtLostBytes = 0;                  // 向Target下，上一次记录的丢包字节数
+    size_t lastReportedtLostBytes = 0;                  // 向Target写，上一次记录的丢包字节数
     std::time_t writeErrorLogTimer(std::time(nullptr));
 
     try {
@@ -587,7 +587,7 @@ int main(int argc, char** argv)
             }
 
             // Create Target, add to epoll instance and wait for readable/writable event
-            // 添加可读事件只是为了获取连接状态，并不是用于实际的数据读取
+            // 按理说target只需要关注可写事件即可，为target添加可读事件只是为了获取连接状态，并不是用于实际的数据读取
             if (!tar.get())
             {
                 tar = Target::Create(cfg.target);
@@ -632,7 +632,7 @@ int main(int argc, char** argv)
                 100,
                 &sysrfds[0], &sysrfdslen, 0, 0) >= 0)
             {
-                bool doabort = false;
+                bool doabort = false; // 是否退出当前循环
 
                 // 处理SRT socket事件
                 for (size_t i = 0; i < sizeof(srtrwfds) / sizeof(SRTSOCKET); i++)
@@ -667,9 +667,10 @@ int main(int argc, char** argv)
                     SRT_SOCKSTATUS status = srt_getsockstate(s);
                     switch (status)
                     {
-                    // 监听套接字
+                    // LISTENING - 监听状态
                     case SRTS_LISTENING:
                     {
+                        // 判断是srcource还是target
                         const bool res = (issource) ?
                             src->AcceptNewClient() : tar->AcceptNewClient();
                         if (!res)
@@ -683,6 +684,7 @@ int main(int argc, char** argv)
                         // 当监听socket接受新的连接后，就不再关注此监听套接字的状态了
                         srt_epoll_remove_usock(pollid, s);
 
+                        // add new accepted socket to epoll instance
                         SRTSOCKET ns = (issource) ?
                             src->GetSRTSocket() : tar->GetSRTSocket();
                         int events = SRT_EPOLL_IN | SRT_EPOLL_ERR;
@@ -739,6 +741,7 @@ int main(int argc, char** argv)
                             tarConnected = false;
                         }
 
+                        // 自动重连
                         if(!cfg.auto_reconnect)
                         {
                             doabort = true;
@@ -763,6 +766,7 @@ int main(int argc, char** argv)
                         }
                     }
                     break;
+                    // SRT连接建立成功
                     case SRTS_CONNECTED:
                     {
                         if (issource)
@@ -781,6 +785,8 @@ int main(int argc, char** argv)
                             tarConnected = true;
                             if (tar->uri.type() == UriParser::SRT)
                             {
+                                // 在SRT协议中，即使是发送端也需要监听一些控制信息如ACK/NACK等，SRT_EPOLL_IN不仅用于数据接收，也可用于监控连接状态的变化
+                                // 当连接断开时，可通过SRT_RPOLL_IN事件及时检测
                                 const int events = SRT_EPOLL_IN | SRT_EPOLL_ERR;
                                 // Disable OUT event polling when connected
                                 if (srt_epoll_update_usock(pollid,
@@ -819,21 +825,28 @@ int main(int argc, char** argv)
 
                 bool srcReady = false;
 
+                // source和target均已准备就绪
                 if (src.get() && src->IsOpen() && !src->End())
                 {
+                    // 有source srt socket可读
                     if (srtrfdslen > 0)
                     {
                         SRTSOCKET sock = src->GetSRTSocket();
                         if (sock != SRT_INVALID_SOCK)
                         {
+                            // 判断source socket是否在可读事件列表中
                             for (int n = 0; n < srtrfdslen && !(srcReady = (sock == srtrwfds[n])); n ++);
                         }
                     }
+
+                    // 下面这个逻辑用于处理非SRT类型的源
+                    // 没有SRT socket就绪，但是有系统文件描述符可读，可能是文件fd或UDP套接字
                     if (!srcReady && sysrfdslen > 0)
                     {
                         int sock = src->GetSysSocket();
                         if (sock != -1)
                         {
+                            // 检查系统文件描述符是否在可读列表中
                             for (int n = 0; n < sysrfdslen && !(srcReady = (sock == sysrfds[n])); n++);
                         }
                     } 
@@ -842,14 +855,25 @@ int main(int argc, char** argv)
                 // read buffers as much as possible on each read event
                 // note that this implies live streams and does not
                 // work for cached/file sources
+                
+                // 每次事件触发时尝试一次性读取多个数据块，目的是尽可能清空读缓冲区
+                // 在每次可读事件发生时，尽可能多地读取缓冲区中的数据
+                // 这种策略主要适用于实时流媒体传输，不适用于缓存/文件源
+                //  - 对于实时流，需要及时读取数据以避免缓冲区溢出
+                //  - 对于文件源，不需要这种激进的读取策略，因为数据是静态的，不会丢失
                 std::list<std::shared_ptr<MediaPacket>> dataqueue;
+                
+                // read chunck size from source, store on dataqueue
                 if (srcReady)
                 {
+                    // 循环读数据到buff中
                     while (dataqueue.size() < cfg.buffering)
                     {
+                        // read chunk size
                         std::shared_ptr<MediaPacket> pkt(new MediaPacket(transmit_chunk_size));
                         const int res = src->Read(transmit_chunk_size, *pkt, out_stats);
 
+                        // SRT Source error
                         if (res == SRT_ERROR && src->uri.type() == UriParser::SRT)
                         {
                             if (srt_getlasterror(NULL) == SRT_EASYNCRCV)
@@ -860,25 +884,34 @@ int main(int argc, char** argv)
                             );
                         }
 
+                        // 读到0字节，可能是读到了文件尾 或 连接已断开
                         if (res == 0 || pkt->payload.empty())
                         {
                             break;
                         }
 
+                        // 储出数据到队列中
                         dataqueue.push_back(pkt);
                         receivedBytes += pkt->payload.size();
                         if (src->MayBlock())
                             break;
                     }
                 }
+
                 // if there is no target, let the received data be lost
+
+                // 一次性将dataqueue中的全部数据都发送给target
                 while (!dataqueue.empty())
                 {
+                    // dequeue data from dataqueue
                     std::shared_ptr<MediaPacket> pkt = dataqueue.front();
+
+                    // target not ready, drop data
                     if (!tar.get() || !tar->IsOpen())
                     {
                         lostBytes += pkt->payload.size();
                     }
+                    // write data to target, and save status to out_stats 
                     else if (!tar->Write(pkt->payload.data(), pkt->payload.size(), cfg.srctime ? pkt->time : 0, out_stats))
                     {
                         lostBytes += pkt->payload.size();
@@ -891,6 +924,7 @@ int main(int argc, char** argv)
                     dataqueue.pop_front();
                 }
 
+                // 丢包统计定时输出
                 if (!cfg.quiet && (lastReportedtLostBytes != lostBytes))
                 {
                     std::time_t now(std::time(nullptr));

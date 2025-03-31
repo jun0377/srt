@@ -42,8 +42,8 @@ using namespace srt;
 
 bool g_stats_are_printed_to_stdout = false;                 // SRT状态信息打印到标准输出
 bool transmit_total_stats = false;
-unsigned long transmit_bw_report = 0;
-unsigned long transmit_stats_report = 0;
+unsigned long transmit_bw_report = 0;                       // 带宽报告频率，每多少个数据包生成一次报告
+unsigned long transmit_stats_report = 0;                    // 状态统计报告频率，每多少个数据包生成一次报告
 unsigned long transmit_chunk_size = SRT_LIVE_MAX_PLSIZE;
 
 class FileSource: public Source
@@ -593,21 +593,26 @@ int SrtTarget::ConfigurePre(SRTSOCKET sock)
     return 0;
 }
 
+// write data to target,发送数据并统计信息
 int SrtTarget::Write(const char* data, size_t size, int64_t src_time, ostream &out_stats)
 {
+    // static
     static unsigned long counter = 1;
 
-    SRT_MSGCTRL ctrl = srt_msgctrl_default;
-    ctrl.srctime = src_time;
+    SRT_MSGCTRL ctrl = srt_msgctrl_default;                     // SRT控制信息
+    ctrl.srctime = src_time;                                    // 数据包时间戳， 0 或 原始时间戳
     int stat = srt_sendmsg2(m_sock, data, (int) size, &ctrl);
     if (stat == SRT_ERROR)
     {
         return stat;
     }
 
+    // 是否需要带宽统计报告
     const bool need_bw_report = transmit_bw_report && (counter % transmit_bw_report) == transmit_bw_report - 1;
+    // 是否需要状态统计报告
     const bool need_stats_report = transmit_stats_report && (counter % transmit_stats_report) == transmit_stats_report - 1;
 
+    // SRT性能监控
     if (need_bw_report || need_stats_report)
     {
         CBytePerfMon perf;
