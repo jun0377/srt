@@ -214,7 +214,7 @@ int parse_args(LiveTransmitConfig &cfg, int argc, char** argv)
     options_t params = ProcessOptions(argv, argc, optargs);
 
 	// 是否需要输出帮助信息
-          bool print_help    = OptionPresent(params, o_help);
+    bool print_help    = OptionPresent(params, o_help);
 	// 是否需要输出版本信息
     const bool print_version = OptionPresent(params, o_version);
 

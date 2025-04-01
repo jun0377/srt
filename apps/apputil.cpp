@@ -390,6 +390,14 @@ string OptionHelpItem(const OptionName& o)
     return out;
 }
 
+// SRT使用的时钟类型
+/*
+    - C++11提供的steady_clock单调递增时钟
+    - linux系统的CLOCK_MONOTONIC,单调递增时钟
+    - Windows系统提供的高精度计数器
+    - macos的Mach absolute time
+    - POSIX提供的gettimeofday()
+*/
 const char* SRTClockTypeStr()
 {
     const int clock_type = srt_clock_type();
@@ -413,6 +421,7 @@ const char* SRTClockTypeStr()
     return "UNKNOWN VALUE";
 }
 
+// SRT 版本信息
 void PrintLibVersion()
 {
     cerr << "Built with SRT Library version: " << SRT_VERSION  << endl;

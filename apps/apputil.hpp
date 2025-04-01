@@ -122,10 +122,11 @@ inline bool CheckTrue(const std::vector<std::string>& in)
     //return false;
 }
 
+// 通用的字符串转数值模板函数，必须特化才能使用
 template<class Number>
 static inline Number StrToNumber(const std::string& )
 {
-    typename Number::incorrect_version wrong = Number::incorrect_version;
+    typename Number::incorrect_version wrong = Number::incorrect_version;   // 通过访问不存在的incorrect_version来防止用户使用特化的数值类型
     return Number();
 }
 
@@ -155,9 +156,10 @@ struct OutString
     static type process(const options_t::mapped_type& i) { return Join(i, " "); }
 };
 
+// 字符串转数值
 struct NumberAutoConvert
 {
-    std::string value;
+    std::string value;  // 要转化的字符串
 
     NumberAutoConvert(): NumberAutoConvert("") {}
     NumberAutoConvert(const std::string& arg): NumberAutoConvert(arg.c_str()) {}
@@ -167,6 +169,7 @@ struct NumberAutoConvert
             value = "0"; // Must convert to a default 0 number
     }
 
+    // 函数模板，特化函数模板StrToNumber
     template<class Number>
     operator Number()
     {
@@ -174,6 +177,7 @@ struct NumberAutoConvert
     }
 };
 
+// 命令行参数中的数值类型转换
 struct OutNumber
 {
     typedef NumberAutoConvert type;

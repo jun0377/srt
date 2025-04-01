@@ -1010,7 +1010,7 @@ protected:
 class UdpSource: public Source, public UdpCommon
 {
 protected:
-    bool eof = true;
+    bool eof = true;                // 输入流是否结束，比如文件流读到了文件尾，UDP流结束
 public:
 
     // Create a UDP socket and bind to the local address
@@ -1034,15 +1034,32 @@ public:
         // On most POSIX systems, to the multicast address (target_addr in this case)
         // On Windows, to a local address (hence use interface_addr, as in this
         // case it differs to target_addr).
+/*
+    - 地址字段说明：
+
+    - target_addr : 用于读取数据的地址
+    - 单播模式：接口的本地地址
+    - 多播模式：IGMP 多播地址
+    - interface_addr : 本地接口地址
+    - 单播模式：与 target_addr 相同
+    - 多播模式：实际的网络接口地址
+    - 多播绑定的系统差异：
+
+    - POSIX 系统：直接绑定到多播地址（使用 target_addr）
+    - Windows 系统：必须绑定到本地地址（使用 interface_addr）
+    - 这是因为 Windows 在调用 bind() 时不支持直接使用多播地址
+    - 需要使用实际的网络接口地址来指定要使用的网络设备
+*/
 
 #if defined(_WIN32) || defined(__CYGWIN__)
+        // baddr == bind addrress
         sockaddr_any baddr = is_multicast ? interface_addr : target_addr;
         static const char* const sysname = "Windows";
 #else
         static const char* const sysname = "POSIX";
         sockaddr_any baddr = target_addr;
 #endif
-        Verb("UDP:", is_multicast ? "Multicast" : "Unicast", "(", sysname,
+        Verb("UDP Source:", is_multicast ? "Multicast" : "Unicast", "(", sysname,
                 "): will bind to: ", baddr.str());
 
         // system bind
@@ -1050,6 +1067,7 @@ public:
 
         if (stat == -1)
             Error(SysError(), "Binding address for UDP");
+        
         eof = false;
     }
 

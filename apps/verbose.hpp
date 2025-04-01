@@ -17,19 +17,20 @@
 namespace Verbose
 {
 
-extern bool on;
+extern bool on;                                    // 是否启用详细日志输出
 extern std::ostream* cverb;
 
 struct LogNoEol { LogNoEol() {} };
 struct LogLock { LogLock() {} };
 
+// verbose日志输出类
 class Log
 {
-    bool noeol = false;
+    bool noeol = false;                         // 是否自动添加换行符
     srt::sync::atomic<bool> lockline;
 
     // Disallow creating dynamic objects
-    void* operator new(size_t) = delete;
+    void* operator new(size_t) = delete;        // 禁止动态分配该对象
 
 public:
 
@@ -47,12 +48,13 @@ public:
         return *this;
     }
 
-    Log& operator<<(LogNoEol);
-    Log& operator<<(LogLock);
+    // 特化流操作运算符
+    Log& operator<<(LogNoEol);      // 处理不输出换行符的情况，如：Verb() << "This is a message without newline" << VerbNoEOL;
+    Log& operator<<(LogLock);       // 处理行锁定的情况，如：Verb() << "This is a thread-safe message" << VerbLock;
     ~Log();
 };
 
-
+// verbose error日志输出类
 class ErrLog: public Log
 {
 public:
