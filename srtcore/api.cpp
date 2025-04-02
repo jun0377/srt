@@ -107,6 +107,10 @@ SRT_SOCKSTATUS srt::CUDTSocket::getStatus()
     // In this case m_bConnected is also false. Both checks are required to avoid hitting
     // a regular state transition from CONNECTING to CONNECTED.
 
+    // 当连接建立过程中 TTL 超时时， CRendezvousQueue::updateConnStatus() 会将 m_bConnecting 设置为 false
+    // 需要同时检查 m_bConnecting 和 m_bConnected 两个标志，如果 m_bConnecting 为 false 且 m_bConnected 也为 false，说明连接已经超时失败，应该返回 SRTS_BROKEN 状态
+    // 这种双重检查可以避免错误地将状态从 CONNECTING 转换到 CONNECTED
+
     if (m_UDT.m_bBroken)
         return SRTS_BROKEN;
 
@@ -118,6 +122,7 @@ SRT_SOCKSTATUS srt::CUDTSocket::getStatus()
 }
 
 // [[using locked(m_GlobControlLock)]]
+// 在资源回收线程中安全地关闭套接字，必须在持有 m_GlobControlLock 锁的情况下调用
 void srt::CUDTSocket::breakSocket_LOCKED()
 {
     // This function is intended to be called from GC,
@@ -238,6 +243,7 @@ srt::CUDTUnited::~CUDTUnited()
 #endif
 }
 
+// 生成SRT套接字的连接标识符字符串
 string srt::CUDTUnited::CONID(SRTSOCKET sock)
 {
     if (sock == 0)
@@ -2761,6 +2767,7 @@ void srt::CUDTUnited::checkBrokenSockets()
     for (sockets_t::iterator i = m_Sockets.begin(); i != m_Sockets.end(); ++i)
     {
         CUDTSocket* s = i->second;
+
         // 套接字正常，continue
         if (!s->core().m_bBroken)
             continue;
@@ -3485,10 +3492,11 @@ void* srt::CUDTUnited::garbageCollect(void* p)
 
     UniqueLock gclock(self->m_GCStopLock);
 
-    // 当前实例正常运行
+    // 循环检查套接字状态
     while (!self->m_bClosing)
     {
         INCREMENT_THREAD_ITERATIONS();
+
         self->checkBrokenSockets();
 
         HLOGC(inlog.Debug, log << "GC: sleep 1 s");

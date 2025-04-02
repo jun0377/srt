@@ -6219,6 +6219,9 @@ void srt::CUDT::addressAndSend(CPacket& w_pkt)
 
 // [[using maybe_locked(m_GlobControlLock, if called from breakSocket_LOCKED, usually from GC)]]
 // [[using maybe_locked(m_parent->m_ControlLock, if called from srt_close())]]
+
+// 用于在资源回收线程中安全地关闭套接字，只能在GC线程中调用
+// 必须在持有 m_GlobControlLock 锁的情况下调用
 bool srt::CUDT::closeInternal() ATR_NOEXCEPT
 {
     // NOTE: this function is called from within the garbage collector thread.
@@ -6235,21 +6238,29 @@ bool srt::CUDT::closeInternal() ATR_NOEXCEPT
     // that it's in response to a broken connection.
     HLOGC(smlog.Debug, log << CONID() << "closing socket");
 
+    // 开启了套接字延迟关闭，在套接字关闭前尽可能多得将数据发送出去
     if (m_config.Linger.l_onoff != 0)
     {
         const steady_clock::time_point entertime = steady_clock::now();
 
         HLOGC(smlog.Debug, log << CONID() << "... (linger)");
+
+        // 连接未断开 && 连接已建立 && 发送缓冲区中有数据 && 未超过延迟确认时间
+        // 继续发送数据
         while (!m_bBroken && m_bConnected && (m_pSndBuffer->getCurrBufSize() > 0) &&
                (steady_clock::now() - entertime < seconds_from(m_config.Linger.l_linger)))
         {
             // linger has been checked by previous close() call and has expired
+
+            // 套接字延迟关闭的时间已经过期，不再发送数据
             if (m_tsLingerExpiration >= entertime)
                 break;
 
+            // 异步发送模式，异步发送模式下，不会阻塞等待数据发送完成，设置获取时间后立即返回
             if (!m_config.bSynSending)
             {
                 // if this socket enables asynchronous sending, return immediately and let GC to close it later
+                // 如果没有设置过过期时间，则设置套接字延迟关闭的过期时间
                 if (is_zero(m_tsLingerExpiration))
                     m_tsLingerExpiration = entertime + seconds_from(m_config.Linger.l_linger);
 
@@ -6260,6 +6271,7 @@ bool srt::CUDT::closeInternal() ATR_NOEXCEPT
                 return false;
             }
 
+            // 同步发送模式，当前线程休眠等待
 #ifndef _WIN32
             timespec ts;
             ts.tv_sec  = 0;

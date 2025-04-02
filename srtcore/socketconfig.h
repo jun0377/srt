@@ -223,13 +223,13 @@ struct CSrtConfig: CSrtMuxerConfig
 
     // Options
     // 阻塞模式发送
-    bool   bSynSending;     // Sending synchronization mode
+    bool   bSynSending;     // 同步发送模式，Sending synchronization mode
     // 阻塞模式接收
     bool   bSynRecving;     // Receiving synchronization mode
     int    iFlightFlagSize; // Maximum number of packets in flight from the peer side
     int    iSndBufSize;     // Maximum UDT sender buffer size
     int    iRcvBufSize;     // Maximum UDT receiver buffer size
-    linger Linger;          // Linger information on close
+    linger Linger;          // 套接字延迟关闭，确保数据完整发送 Linger information on close
     bool   bRendezvous;     // Rendezvous connection mode
 
     duration tdConnTimeOut; // connect timeout in milliseconds

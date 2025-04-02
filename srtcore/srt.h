@@ -134,6 +134,10 @@ typedef int32_t SRTSOCKET;
 // the "socket group". Most of the API functions should work
 // transparently with the socket descriptor designating a single
 // socket or a socket group.
+
+// 位31（最高位）保留不用
+// 位30用于标记套接字组
+// 套接字组允许多个 SRT 连接作为一个逻辑单元进行管理，这对于实现冗余传输、负载均衡或故障转移等高级功能非常有用
 static const int32_t SRTGROUP_MASK = (1 << 30);
 
 #ifdef _WIN32

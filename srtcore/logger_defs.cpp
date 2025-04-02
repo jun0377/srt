@@ -19,7 +19,7 @@ SRT_API srt_logging::LogConfig srt_logger_config(srt_logging::logger_fa_all.allf
 namespace srt_logging
 {
     Logger gglog(SRT_LOGFA_GENERAL, srt_logger_config, "SRT.gg");
-    Logger smlog(SRT_LOGFA_SOCKMGMT, srt_logger_config, "SRT.sm");
+    Logger smlog(SRT_LOGFA_SOCKMGMT, srt_logger_config, "SRT.sm");  // smlog: Socket create/open/close/configure activities
     Logger cnlog(SRT_LOGFA_CONN, srt_logger_config, "SRT.cn");
     Logger xtlog(SRT_LOGFA_XTIMER, srt_logger_config, "SRT.xt");
     Logger tslog(SRT_LOGFA_TSBPD, srt_logger_config, "SRT.ts");

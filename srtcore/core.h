@@ -165,6 +165,8 @@ class CUDTGroup;
 // separating the internal abnormal path management (exceptions) from the
 // API (return values), through CUDTUnited, this class may become in future
 // an officially exposed C++ API.
+
+// 负责处理底层传输功能，包括 握手/可靠传输/拥塞控制/流量控制/延迟控制/加密通信
 class CUDT
 {
     friend class CUDTSocket;
@@ -293,6 +295,7 @@ public: // internal API
         return m_ConnRes.m_iVersion;
     }
 
+    // 仅用于日志记录
     std::string CONID() const
     {
 #if ENABLE_LOGGING
@@ -890,7 +893,7 @@ private: // Timers
     time_point m_tsLastWarningTime;              // Last time that a warning message is sent
     atomic_time_point m_tsLastReqTime;           // last time when a connection request is sent
     time_point m_tsRcvPeerStartTime;
-    time_point m_tsLingerExpiration;             // Linger expiration time (for GC to close a socket with data in sending buffer)
+    time_point m_tsLingerExpiration;             // 记录套接字延迟关闭的过期时间， Linger expiration time (for GC to close a socket with data in sending buffer)
     time_point m_tsLastAckTime;                  // (RCV) Timestamp of last ACK
     duration m_tdMinNakInterval;                 // NAK timeout lower bound; too small value can cause unnecessary retransmission
     duration m_tdMinExpInterval;                 // Timeout lower bound threshold: too small timeout can cause problem

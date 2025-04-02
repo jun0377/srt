@@ -73,13 +73,17 @@ modified by
 * SRT_ENABLE_THREADCHECK IS SET IN MAKEFILE, NOT HERE
 */
 #if defined(SRT_ENABLE_THREADCHECK)
+
 #include "threadcheck.h"
+
 #else
+
 #define THREAD_STATE_INIT(name)
 #define THREAD_EXIT()
 #define THREAD_PAUSED()
 #define THREAD_RESUMED()
 #define INCREMENT_THREAD_ITERATIONS()
+
 #endif
 
 #ifdef __cplusplus

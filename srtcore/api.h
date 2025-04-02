@@ -78,6 +78,8 @@ class CUDT;
 
 /// @brief Class CUDTSocket is a control layer on top of the CUDT core functionality layer.
 /// CUDTSocket owns CUDT.
+
+// 描述一个UDT套接字
 class CUDTSocket
 {
 public:
@@ -137,7 +139,7 @@ public:
 
     // SRT Socket状态
     SRT_ATTR_GUARDED_BY(m_ControlLock)
-    sync::atomic<SRT_SOCKSTATUS> m_Status; //< current socket state
+    sync::atomic<SRT_SOCKSTATUS> m_Status;          //  < current socket state
 
     /// Time when the socket is closed.
     /// When the socket is closed, it is not removed immediately from the list
@@ -145,16 +147,17 @@ public:
     /// A timer is started and the socket will be removed after approximately
     /// 1 second (see CUDTUnited::checkBrokenSockets()).
     //sync::steady_clock::time_point m_tsClosureTimeStamp;
-    // 记录套接字关闭的时间点
+
+    // 记录套接字关闭的时间戳
     //  1. 当套接字被关闭时，不会立即从套接字列表中移除
     //  2. 而是启动一个定时器，大约1s后套接字才会被移除，防止某些线程访问到无效的套接字
     sync::AtomicClock<sync::steady_clock> m_tsClosureTimeStamp;
 
-    sockaddr_any m_SelfAddr; //< local address of the socket
-    sockaddr_any m_PeerAddr; //< peer address of the socket
+    sockaddr_any m_SelfAddr; //     < local address of the socket
+    sockaddr_any m_PeerAddr; //     < peer address of the socket
 
-    SRTSOCKET m_SocketID;     //< socket ID
-    SRTSOCKET m_ListenSocket; //< ID of the listener socket; 0 means this is an independent socket
+    SRTSOCKET m_SocketID;     //    < socket ID
+    SRTSOCKET m_ListenSocket; // 监听套接字，0 - 表示这是监听套接字;其它值表示这是调用accept后的套接字    < ID of the listener socket; 0 means this is an independent socket
 
     SRTSOCKET m_PeerID; //< peer socket ID
 #if ENABLE_BONDING
@@ -165,16 +168,17 @@ public:
     int32_t m_iISN; //< initial sequence number, used to tell different connection from same IP:port
 
 private:
+    // 负责底层传输控制
     CUDT m_UDT; //< internal SRT socket logic
 
 public:
     // 等待accept建立连接的套接字队列
     std::map<SRTSOCKET, sockaddr_any> m_QueuedSockets; //< set of connections waiting for accept()
 
-    sync::Condition m_AcceptCond; //< used to block "accept" call
-    sync::Mutex     m_AcceptLock; //< mutex associated to m_AcceptCond
+    sync::Condition m_AcceptCond;   //< used to block "accept" call
+    sync::Mutex     m_AcceptLock;   //< mutex associated to m_AcceptCond
 
-    unsigned int m_uiBackLog; //< maximum number of connections in queue
+    unsigned int m_uiBackLog;       // 监听套接字的最大连接长度 < maximum number of connections in queue
 
     // XXX A refactoring might be needed here.
 
@@ -187,16 +191,22 @@ public:
     // When deleting, you simply "unsubscribe" yourself from the multiplexer, which
     // will unref it and remove the list element by the iterator kept by the
     // socket.
+
+    // 多路复用器ID
     int m_iMuxID; //< multiplexer ID
 
+    // bind/listen/connect 互斥锁
     sync::Mutex m_ControlLock; //< lock this socket exclusively for control APIs: bind/listen/connect
 
+    // 获取UDT实例
     CUDT&       core() { return m_UDT; }
     const CUDT& core() const { return m_UDT; }
 
+    // 生成对端唯一标识符，根据对端套接字ID和初始序列号来生成，用于区分来自同一对端IP:PORT的不同连接
     static int64_t getPeerSpec(SRTSOCKET id, int32_t isn) { return (int64_t(id) << 30) + isn; }
     int64_t        getPeerSpec() { return getPeerSpec(m_PeerID, m_iISN); }
 
+    // 获取套接字状态
     SRT_SOCKSTATUS getStatus();
 
     /// This function shall be called always wherever
@@ -204,6 +214,8 @@ public:
     /// from within the GC thread only (that is, only when
     /// the socket should be no longer visible in the
     /// connection, including for sending remaining data).
+
+    // 当你需要调用 cudtsocket->m_pUDT->close() 时，应该使用这个函数替代直接调用 close()
     void breakSocket_LOCKED();
 
     /// This makes the socket no longer capable of performing any transmission
@@ -238,7 +250,7 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// 整体结构，包括所有的套接字和套接字组
+// 包括所有的套接字和套接字组
 //  1. 已关闭的套接字或异常的套接字会首先从 m_Sodkets 移动到 m_ClosedSockets，随后由GC线程回收
 //  2. 已关闭的套接字组会移动到 m_ClosedGroups，当其引用计数为0时，由GC线程回收
 class CUDTUnited
@@ -256,16 +268,22 @@ public:
     static const int32_t MAX_SOCKET_VAL = SRTGROUP_MASK - 1; // maximum value for a regular socket
 
 public:
+
+    // 错误处理策略
     enum ErrorHandling
     {
         ERH_RETURN,
         ERH_THROW,
         ERH_ABORT
     };
+
+    // 生成SRT套接字的连接标识符字符串
     static std::string CONID(SRTSOCKET sock);
 
     /// initialize the UDT library.
     /// @return 0 if success, otherwise -1 is returned.
+
+    // 初始化UDT库，只是创建了一个资源回收线程
     int startup();
 
     /// release the UDT library.
@@ -410,7 +428,7 @@ private:
 private:
     typedef std::map<SRTSOCKET, CUDTSocket*> sockets_t; // stores all the socket structures
     
-    // 保存所有的套接字
+    // 所有的套接字，已关闭的套接字或异常的套接字会首先从 m_Sodkets 移动到 m_ClosedSockets，随后由GC线程回收
     SRT_ATTR_GUARDED_BY(m_GlobControlLock)
     sockets_t m_Sockets;
 
@@ -568,7 +586,7 @@ private:
     // 资源回收线程
     SRT_ATTR_GUARDED_BY(m_InitLock)
     sync::CThread m_GCThread;
-    static void*  garbageCollect(void*);
+    static void*  garbageCollect(void*);        // 资源回收线程
 
     // 保护CUDTUnited中的所有容器
     SRT_ATTR_GUARDED_BY(m_GlobControlLock)
