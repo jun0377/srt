@@ -6220,7 +6220,7 @@ void srt::CUDT::addressAndSend(CPacket& w_pkt)
 // [[using maybe_locked(m_GlobControlLock, if called from breakSocket_LOCKED, usually from GC)]]
 // [[using maybe_locked(m_parent->m_ControlLock, if called from srt_close())]]
 
-// 用于在资源回收线程中安全地关闭套接字，只能在GC线程中调用
+// 用于在资源回收线程中安全地关闭套接字
 // 必须在持有 m_GlobControlLock 锁的情况下调用
 bool srt::CUDT::closeInternal() ATR_NOEXCEPT
 {

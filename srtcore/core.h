@@ -833,7 +833,7 @@ private:
     sync::atomic<bool> m_bConnecting;            // The short phase when connect() is called but not yet completed
     // 连接是否建立成功
     sync::atomic<bool> m_bConnected;             // Whether the connection is on or off
-    sync::atomic<bool> m_bClosing;               // If the UDT entity is closing
+    sync::atomic<bool> m_bClosing;               // 套接字延迟关闭时间到期，进入closing状态 If the UDT entity is closing
     sync::atomic<bool> m_bShutdown;              // If the peer side has shutdown the connection
     // 连接异常
     sync::atomic<bool> m_bBroken;                // If the connection has been broken

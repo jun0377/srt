@@ -126,7 +126,7 @@ public:
     void construct();
 
 private:
-    srt::sync::atomic<int> m_iBusy;
+    srt::sync::atomic<int> m_iBusy;     // 套接字繁忙？
 public:
     void apiAcquire() { ++m_iBusy; }
     void apiRelease() { --m_iBusy; }
@@ -446,9 +446,9 @@ private:
     SRTSOCKET m_SocketIDGenerator;      // seed to generate a new unique socket ID
     SRTSOCKET m_SocketIDGenerator_init; // Keeps track of the very first one
 
+    // 记录对端的连接，避免重复连接
     SRT_ATTR_GUARDED_BY(m_GlobControlLock)
-    std::map<int64_t, std::set<SRTSOCKET> >
-        m_PeerRec; // record sockets from peers to avoid repeated connection request, int64_t = (socker_id << 30) + isn
+    std::map<int64_t, std::set<SRTSOCKET> > m_PeerRec; // record sockets from peers to avoid repeated connection request, int64_t = (socker_id << 30) + isn
 
 private:
     friend struct FLookupSocketWithEvent_LOCKED;
@@ -598,8 +598,24 @@ private:
     SRT_ATTR_GUARDED_BY(m_GlobControlLock)
     groups_t m_ClosedGroups;
 #endif
-
+    
+    /*  
+        检查并更新套接字状态
+            - 对于监听套接字，等待3秒后关闭
+            - 普通套接字，则等待一个计数器归零后再关闭套接字，尽可能避免丢失数据
+    */
     void checkBrokenSockets();
+
+    
+    /*
+        从 m_ClosedSockets 中移除该套接字
+            - 正忙的套接字无法移除
+            - 关闭监听套接字时，待连接队列中的套接字也要删除
+            - 从记录的对端连接map中删除该套接字
+            - 清除该套接字对应的epoll事件
+            - 在资源回收线程中安全地移除相关资源
+            - 清除该套接字关联地多路复用器
+    */
     void removeSocket(const SRTSOCKET u);
 
     CEPoll m_EPoll; // handling epoll data structures and events

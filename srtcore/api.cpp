@@ -134,6 +134,7 @@ void srt::CUDTSocket::breakSocket_LOCKED()
     setClosed();
 }
 
+// 更新套接字状态未SRTS_CLOSED，并记录关闭时间戳
 void srt::CUDTSocket::setClosed()
 {
     m_Status = SRTS_CLOSED;
@@ -142,6 +143,9 @@ void srt::CUDTSocket::setClosed()
     // in order to prevent other methods from accessing invalid address
     // a timer is started and the socket will be removed after approximately
     // 1 second
+
+    // 这个时间戳用来延迟关闭套接字，防止其他方法访问到无效的地址
+    // 当套接字被关闭时不会立即从系统中移除，而是启动一个定时器，在大约1秒后将其移除
     m_tsClosureTimeStamp = steady_clock::now();
 }
 
@@ -2728,7 +2732,11 @@ srt::CUDTSocket* srt::CUDTUnited::locatePeer(const sockaddr_any& peer, const SRT
     return NULL;
 }
 
-// 检查套接字状态
+/*  
+    检查并更新套接字状态
+        - 对于监听套接字，等待3秒后关闭
+        - 普通套接字，则等待一个计数器归零后再关闭套接字，尽可能避免丢失数据
+*/
 void srt::CUDTUnited::checkBrokenSockets()
 {
     ScopedLock cg(m_GlobControlLock);
@@ -2781,6 +2789,7 @@ void srt::CUDTUnited::checkBrokenSockets()
             if (elapsed < milliseconds_from(CUDT::COMM_CLOSE_BROKEN_LISTENER_TIMEOUT_MS))
                 continue;
         }
+        // 普通套接字，如果接收缓冲区中仍有数据，等待计数器归零后再关闭套接字
         else
         {
             CUDT& u = s->core();
@@ -2790,7 +2799,8 @@ void srt::CUDTUnited::checkBrokenSockets()
             bool has_avail_packets = u.m_pRcvBuffer && u.m_pRcvBuffer->hasAvailablePackets();
             leaveCS(u.m_RcvBufferLock);
 
-            // /异常的套接字，接收缓冲区中仍有数据，套接字不会被立即关闭，而是等待此计数器归零后再关闭套接字
+            // 异常的套接字，接收缓冲区中仍有数据，套接字不会被立即关闭，而是等待此计数器归零后再关闭套接字
+            // 在 CUDTSocket::setBrokenClosed 中将其设置为了60
             if (has_avail_packets)
             {
                 const int bc = u.m_iBrokenCounter.load();
@@ -2815,11 +2825,13 @@ void srt::CUDTUnited::checkBrokenSockets()
         HLOGC(smlog.Debug, log << "checkBrokenSockets: moving BROKEN socket to CLOSED: @" << i->first);
 
         // close broken connections and start removal timer
+
+        // 设置套接字状态为CLOSED，启动一个套接字延迟删除定时器；并将该套接字添加到待删除队列中，同时添加到待关闭套接字map中
         s->setClosed();
         tbc.push_back(i->first);
         m_ClosedSockets[i->first] = s;
 
-        // remove from listener's queue
+        // remove from listener's queue，将监听套接字从 活动活动套接字列表 和 待关闭套接字列表 中移除
         sockets_t::iterator ls = m_Sockets.find(s->m_ListenSocket);
         if (ls == m_Sockets.end())
         {
@@ -2828,11 +2840,13 @@ void srt::CUDTUnited::checkBrokenSockets()
                 continue;
         }
 
+        // 清空监听套接字的待连接队列
         enterCS(ls->second->m_AcceptLock);
         ls->second->m_QueuedSockets.erase(s->m_SocketID);
         leaveCS(ls->second->m_AcceptLock);
     }
 
+    // 遍历待关闭套接字列表,
     for (sockets_t::iterator j = m_ClosedSockets.begin(); j != m_ClosedSockets.end(); ++j)
     {
         CUDTSocket* ps = j->second;
@@ -2844,6 +2858,9 @@ void srt::CUDTUnited::checkBrokenSockets()
         // than through the numeric ID). Therefore this way of busy acquisition
         // should be done only if at the moment of acquisition there are certainly
         // other conditions applying on the socket that prevent it from being deleted.
+
+
+        // 套接字仍然繁忙，continue
         if (ps->isStillBusy())
         {
             HLOGC(smlog.Debug, log << "checkBrokenSockets: @" << ps->m_SocketID << " is still busy, SKIPPING THIS CYCLE.");
@@ -2853,9 +2870,13 @@ void srt::CUDTUnited::checkBrokenSockets()
         CUDT& u = ps->core();
 
         // HLOGC(smlog.Debug, log << "checking CLOSED socket: " << j->first);
+
+        // 套接字延迟关闭到期后，设置套接字状态为CLOSING，
         if (!is_zero(u.m_tsLingerExpiration))
         {
             // asynchronous close:
+
+            // (发送缓冲区不存在 || 发送缓冲区为空) || (延迟关闭时间已到期)，则设置套接字状态为CLOSEING
             if ((!u.m_pSndBuffer) || (0 == u.m_pSndBuffer->getCurrBufSize()) ||
                 (u.m_tsLingerExpiration <= steady_clock::now()))
             {
@@ -2868,12 +2889,15 @@ void srt::CUDTUnited::checkBrokenSockets()
 
         // timeout 1 second to destroy a socket AND it has been removed from
         // RcvUList
+
+
         const steady_clock::time_point now        = steady_clock::now();
-        const steady_clock::duration   closed_ago = now - ps->m_tsClosureTimeStamp.load();
-        if (closed_ago > seconds_from(1))
+        const steady_clock::duration   closed_ago = now - ps->m_tsClosureTimeStamp.load();  // 套接字关闭后经过的时间
+        if (closed_ago > seconds_from(1))   // 延迟1秒关闭
         {
             CRNode* rnode = u.m_pRNode;
-            if (!rnode || !rnode->m_bOnList)
+            // 接收缓冲区不存在 或 为空，此时可以将该套接字从添加到待删除队列tbr中
+            if (!rnode || !rnode->m_bOnList) 
             {
                 HLOGC(smlog.Debug,
                       log << "checkBrokenSockets: @" << ps->m_SocketID << " closed "
@@ -2886,10 +2910,12 @@ void srt::CUDTUnited::checkBrokenSockets()
     }
 
     // move closed sockets to the ClosedSockets structure
+    // 从 m_Sockets 中移除该套接字
     for (vector<SRTSOCKET>::iterator k = tbc.begin(); k != tbc.end(); ++k)
         m_Sockets.erase(*k);
 
     // remove those timeout sockets
+    // 从 m_ClosedSockets 中移除该套接字
     for (vector<SRTSOCKET>::iterator l = tbr.begin(); l != tbr.end(); ++l)
         removeSocket(*l);
 
@@ -2897,6 +2923,15 @@ void srt::CUDTUnited::checkBrokenSockets()
 }
 
 // [[using locked(m_GlobControlLock)]]
+/*
+    从 m_ClosedSockets 中移除该套接字
+        - 正忙的套接字无法移除
+        - 关闭监听套接字时，待连接队列中的套接字也要删除
+        - 从记录的对端连接map中删除该套接字
+        - 清除该套接字对应的epoll事件
+        - 在资源回收线程中安全地移除相关资源
+        - 清除该套接字关联地多路复用器
+*/
 void srt::CUDTUnited::removeSocket(const SRTSOCKET u)
 {
     sockets_t::iterator i = m_ClosedSockets.find(u);
@@ -2911,14 +2946,20 @@ void srt::CUDTUnited::removeSocket(const SRTSOCKET u)
     // still be under processing in the sender/receiver worker
     // threads. If that's the case, SKIP IT THIS TIME. The
     // socket will be checked next time the GC rollover starts.
+
+    // 即使套接字已被标记为待删除，它仍可能正在被被发送/接收工作线程处理，则跳过本次删除操作
+
+    // 套接字仍在被发送队列处理
     CSNode* sn = s->core().m_pSNode;
     if (sn && sn->m_iHeapLoc != -1)
         return;
 
+    // 套接字仍在被接收队列处理
     CRNode* rn = s->core().m_pRNode;
     if (rn && rn->m_bOnList)
         return;
 
+    // 套接字仍忙
     if (s->isStillBusy())
     {
         HLOGC(smlog.Debug, log << "@" << s->m_SocketID << " is still busy, NOT deleting");
@@ -2938,11 +2979,14 @@ void srt::CUDTUnited::removeSocket(const SRTSOCKET u)
     // decrease multiplexer reference count, and remove it if necessary
     const int mid = s->m_iMuxID;
 
+    // 关闭监听套接字时的清理工作
     {
         ScopedLock cg(s->m_AcceptLock);
 
         // if it is a listener, close all un-accepted sockets in its queue
         // and remove them later
+
+        // 遍历该监听套接字的待连接队列
         for (map<SRTSOCKET, sockaddr_any>::iterator q = s->m_QueuedSockets.begin();
                 q != s->m_QueuedSockets.end(); ++ q)
         {
@@ -2958,13 +3002,14 @@ void srt::CUDTUnited::removeSocket(const SRTSOCKET u)
 
             CUDTSocket* as = si->second;
 
-            as->breakSocket_LOCKED();
-            m_ClosedSockets[q->first] = as;
-            m_Sockets.erase(q->first);
+            as->breakSocket_LOCKED();           // 将待连接队列中的套接字设置为broken
+            m_ClosedSockets[q->first] = as;     // 添加到待关闭套接字列表中
+            m_Sockets.erase(q->first);          // 从 m_Sockets 中移除该套接字
         }
     }
 
     // remove from peer rec
+    // 从记录的对端信息中删除该套接字
     map<int64_t, set<SRTSOCKET> >::iterator j = m_PeerRec.find(s->getPeerSpec());
     if (j != m_PeerRec.end())
     {
@@ -2977,6 +3022,8 @@ void srt::CUDTUnited::removeSocket(const SRTSOCKET u)
      * Socket may be deleted while still having ePoll events set that would
      * remains forever causing epoll_wait to unblock continuously for inexistent
      * sockets. Get rid of all events for this socket.
+     * 
+     * 清除该套接字对应的epoll事件
      */
     m_EPoll.update_events(u, s->core().m_sPollID, SRT_EPOLL_IN | SRT_EPOLL_OUT | SRT_EPOLL_ERR, false);
 
@@ -2995,7 +3042,7 @@ void srt::CUDTUnited::removeSocket(const SRTSOCKET u)
 
     HLOGC(smlog.Debug, log << "GC/removeSocket: closing associated UDT @" << u);
     leaveCS(m_GlobControlLock);
-    s->core().closeInternal();
+    s->core().closeInternal();      // 在资源回收线程中安全地关闭套接字
     enterCS(m_GlobControlLock);
     HLOGC(smlog.Debug, log << "GC/removeSocket: DELETING SOCKET @" << u);
     delete s;
@@ -3009,16 +3056,20 @@ void srt::CUDTUnited::removeSocket(const SRTSOCKET u)
 
     map<int, CMultiplexer>::iterator m;
     m = m_mMultiplexer.find(mid);
+
+    // 找不到该套接字对应的多路复用器，报错; 这种情况不应该发生，因为每个有效的套接字都应该关联一个有效的多路复用器
     if (m == m_mMultiplexer.end())
     {
+        // IPE: Internal Programming Error,内部编程错误
         LOGC(smlog.Fatal, log << "IPE: For socket @" << u << " MUXER id=" << mid << " NOT FOUND!");
         return;
     }
 
     CMultiplexer& mx = m->second;
 
-    mx.m_iRefCount--;
+    mx.m_iRefCount--;               // 多路复用器引用计数减1
     HLOGC(smlog.Debug, log << "unrefing underlying muxer " << mid << " for @" << u << ", ref=" << mx.m_iRefCount);
+    // 多路复用器引用计数归零后，销毁之
     if (0 == mx.m_iRefCount)
     {
         HLOGC(smlog.Debug,
@@ -3029,10 +3080,10 @@ void srt::CUDTUnited::removeSocket(const SRTSOCKET u)
         // The queues must be silenced before closing the channel
         // because this will cause error to be returned in any operation
         // being currently done in the queues, if any.
-        mx.m_pSndQueue->setClosing();
-        mx.m_pRcvQueue->setClosing();
-        mx.destroy();
-        m_mMultiplexer.erase(m);
+        mx.m_pSndQueue->setClosing();   // 关闭多路复用器关联的发送队列
+        mx.m_pRcvQueue->setClosing();   // 关闭多路复用器关联的接收队列
+        mx.destroy();                   // 销毁多路复用器
+        m_mMultiplexer.erase(m);        // 从map中移除该多路复用器
     }
 }
 

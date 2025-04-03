@@ -569,6 +569,7 @@ private:
     CRcvQueue& operator=(const CRcvQueue&);
 };
 
+// UDP多路复用器，一个UDP端口对应一个多路复用器，负责UDP通信地核心组件
 struct CMultiplexer
 {
     CSndQueue*    m_pSndQueue; // The sending queue

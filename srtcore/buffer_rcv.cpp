@@ -611,6 +611,7 @@ int CRcvBuffer::readBufferToFile(fstream& ofs, int len)
     return readBufferTo(len, writeBytesToFile, reinterpret_cast<void*>(&ofs));
 }
 
+// 接收缓冲区中还有数据
 bool CRcvBuffer::hasAvailablePackets() const
 {
     return hasReadableInorderPkts() || (m_numOutOfOrderPackets > 0 && m_iFirstReadableOutOfOrder != -1);

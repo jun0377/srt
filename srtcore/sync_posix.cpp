@@ -196,6 +196,7 @@ srt::sync::steady_clock::duration srt::sync::milliseconds_from(int64_t t_ms)
     return steady_clock::duration((1000 * t_ms) * s_clock_ticks_per_us);
 }
 
+// 将秒转换为系统时钟
 srt::sync::steady_clock::duration srt::sync::seconds_from(int64_t t_s)
 {
     return steady_clock::duration((1000000 * t_s) * s_clock_ticks_per_us);
