@@ -61,6 +61,10 @@ modified by
 namespace srt
 {
 
+// UDP链路通道管理类
+//  - UDP socket管理：创建、绑定、设置socket选项、设置IP TTL、设置IP ToS
+//  - 发送、接收UDP数据包
+//  - 管理发送/接受缓冲区
 class CChannel
 {
     void createSocket(int family);

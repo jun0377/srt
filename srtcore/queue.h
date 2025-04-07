@@ -391,6 +391,7 @@ private:
     mutable sync::Mutex m_RIDListLock;
 };
 
+// 发送队列管理
 class CSndQueue
 {
     friend class CUDT;

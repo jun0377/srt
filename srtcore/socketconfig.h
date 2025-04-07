@@ -78,6 +78,7 @@ extern const int32_t SRT_DEF_VERSION;
 namespace srt
 {
 
+// UDP多路复用器配置
 struct CSrtMuxerConfig
 {
     static const int DEF_UDP_BUFFER_SIZE = 65536;
@@ -95,6 +96,8 @@ struct CSrtMuxerConfig
 
     // NOTE: this operator is not reversable. The syntax must use:
     //  muxer_entry == socket_entry
+
+    // 用于检查新连接的配置 与 现有多路复用器是否兼容
     bool isCompatWith(const CSrtMuxerConfig& other) const
     {
 #define CEQUAL(field) (field == other.field)

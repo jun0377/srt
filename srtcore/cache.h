@@ -51,6 +51,7 @@ written by
 namespace srt
 {
 
+// 缓存项基类
 class CCacheItem
 {
 public:
@@ -77,6 +78,7 @@ public:
     virtual void release() {}
 };
 
+//通用的缓存管理类
 template <typename T>
 class CCache
 {
@@ -98,6 +100,7 @@ public:
     /// @param [in,out] data storage for the retrieved item; initially it must carry the key information
     /// @return 0 if found a match, otherwise -1.
 
+    // 在缓存中查找匹配的项，并拷贝cached info到data中
     int lookup(T* data)
     {
         srt::sync::ScopedLock cacheguard(m_Lock);
@@ -126,10 +129,12 @@ public:
     /// @param [in] data the new item to updated/inserted to the cache
     /// @return 0 if success, otherwise -1.
 
+    // 更新或插入一个缓存项
     int update(T* data)
     {
         srt::sync::ScopedLock cacheguard(m_Lock);
 
+        // key
         int key = data->getKey();
         if (key < 0)
             return -1;
@@ -194,6 +199,8 @@ private:
     /// Specify the cache size (i.e., max number of items).
     /// Private or else must be protected by a lock.
     /// @param [in] size max cache size.
+
+    // 用于动态调整缓存大小
     void setSizeLimit(int size)
     {
         m_iMaxSize  = size;
@@ -203,6 +210,8 @@ private:
 
     /// Clear all entries in the cache, restore to initialization state.
     /// Private or else must be protected by a lock.
+
+    // 资源释放
     void clear()
     {
         for (typename std::list<T*>::iterator i = m_StorageList.begin(); i != m_StorageList.end(); ++i)
@@ -217,14 +226,14 @@ private:
     }
 
 private:
-    std::list<T*>                            m_StorageList;
-    typedef typename std::list<T*>::iterator ItemPtr;
-    typedef std::list<ItemPtr>               ItemPtrList;
-    std::vector<ItemPtrList>                 m_vHashPtr;
+    std::list<T*>                            m_StorageList;     // 存储缓存项指针的双向链表
+    typedef typename std::list<T*>::iterator ItemPtr;           // 迭代器
+    typedef std::list<ItemPtr>               ItemPtrList;       // 存储迭代器的list，用于哈希表中的冲突链
+    std::vector<ItemPtrList>                 m_vHashPtr;        // hash table，每一个元素都是一个迭代器列表，即使用链地址法来解决哈希冲突
 
-    int m_iMaxSize;
-    int m_iHashSize;
-    int m_iCurrSize;
+    int m_iMaxSize;         // 缓存大小，默认1024个
+    int m_iHashSize;        // 哈希表大小，缓存大小的3倍，默认为 1024 * 3
+    int m_iCurrSize;        // 当前缓存项数量
 
     srt::sync::Mutex m_Lock;
 
@@ -233,27 +242,36 @@ private:
     CCache& operator=(const CCache&);
 };
 
+
+// 用于存储和管理网络连接的相关信息
 class CInfoBlock
 {
 public:
     uint32_t m_piIP[4];          // IP address, machine read only, not human readable format.
     int      m_iIPversion;       // Address family: AF_INET or AF_INET6.
     uint64_t m_ullTimeStamp;     // Last update time.
-    int      m_iSRTT;            // Smoothed RTT.
-    int      m_iBandwidth;       // Estimated link bandwidth.
+    int      m_iSRTT;            // 进行平滑计算后的RTT,pSmoothed RTT.
+    int      m_iBandwidth;       // 估算的带宽,Estimated link bandwidth.
     int      m_iLossRate;        // Average loss rate.
-    int      m_iReorderDistance; // Packet reordering distance.
-    double   m_dInterval;        // Inter-packet time (Congestion Control).
-    double   m_dCWnd;            // Congestion window size (Congestion Control).
+    int      m_iReorderDistance; // 数据包重排序距离,Packet reordering distance.
+    double   m_dInterval;        // 数据包间隔事件,用于拥塞控制,Inter-packet time (Congestion Contrpol).
+    double   m_dCWnd;            // 拥塞窗口大小，Congestion window size (Congestion Control).
 
 public:
     CInfoBlock() {} // NOTE: leaves uninitialized
+    // 深拷贝函数
     CInfoBlock& copyFrom(const CInfoBlock& obj);
+    // 拷贝构造
     CInfoBlock(const CInfoBlock& src) { copyFrom(src); }
+    // 赋值运算符
     CInfoBlock& operator=(const CInfoBlock& src) { return copyFrom(src); }
+    // 比较两个CInfoBlock对象的IP地址是否相同
     bool        operator==(const CInfoBlock& obj) const;
+    // 创建当前对象的深拷贝
     CInfoBlock* clone();
+    // 计算CInfoBlock对象的哈希值，用于确定缓存项在哈希表中的位置
     int         getKey();
+    // 空实现
     void        release() {}
 
 public:
@@ -262,6 +280,7 @@ public:
     /// @param [in] ver IP version
     /// @param [out] ip the result machine readable IP address in integer array
 
+    // 将sockaddr结构转换为整数数组
     static void convert(const sockaddr_any& addr, uint32_t ip[4]);
 };
 

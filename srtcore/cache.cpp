@@ -46,6 +46,7 @@ written by
 
 using namespace std;
 
+// 深拷贝函数
 srt::CInfoBlock& srt::CInfoBlock::copyFrom(const CInfoBlock& obj)
 {
     std::copy(obj.m_piIP, obj.m_piIP + 4, m_piIP);
@@ -61,6 +62,7 @@ srt::CInfoBlock& srt::CInfoBlock::copyFrom(const CInfoBlock& obj)
     return *this;
 }
 
+// 比较两个CInfoBlock对象的IP地址是否相同
 bool srt::CInfoBlock::operator==(const CInfoBlock& obj) const
 {
     if (m_iIPversion != obj.m_iIPversion)
@@ -78,6 +80,7 @@ bool srt::CInfoBlock::operator==(const CInfoBlock& obj) const
     return true;
 }
 
+// 创建当前对象的深拷贝
 srt::CInfoBlock* srt::CInfoBlock::clone()
 {
     CInfoBlock* obj = new CInfoBlock;
@@ -95,6 +98,7 @@ srt::CInfoBlock* srt::CInfoBlock::clone()
     return obj;
 }
 
+// 计算CInfoBlock对象的哈希值，用于确定缓存项在哈希表中的位置
 int srt::CInfoBlock::getKey()
 {
     if (m_iIPversion == AF_INET)
@@ -103,6 +107,7 @@ int srt::CInfoBlock::getKey()
     return m_piIP[0] + m_piIP[1] + m_piIP[2] + m_piIP[3];
 }
 
+// 将sockaddr结构转换为整数数组
 void srt::CInfoBlock::convert(const sockaddr_any& addr, uint32_t aw_ip[4])
 {
     if (addr.family() == AF_INET)
