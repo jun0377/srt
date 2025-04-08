@@ -51,7 +51,7 @@ written by
 namespace srt
 {
 
-// 缓存项基类
+// 缓存项抽象类
 class CCacheItem
 {
 public:

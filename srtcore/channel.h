@@ -67,6 +67,7 @@ namespace srt
 //  - 管理发送/接受缓冲区
 class CChannel
 {
+    // 调用系统API，创建UDP socket
     void createSocket(int family);
 
 public:
@@ -82,13 +83,16 @@ public:
     /// Open a UDP channel.
     /// @param [in] addr The local address that UDP will use.
 
+    // 创建UDP socket并绑定到addr,设置接受/发送缓冲区; 设置TTL / TOS / NONBLOCK / PKT_INFO
     void open(const sockaddr_any& addr);
 
+    // 让系统自动分配一个可用的本地地址，bind并设置接受/发送缓冲区; 设置TTL / TOS / NONBLOCK / PKT_INFO
     void open(int family);
 
     /// Open a UDP channel based on an existing UDP socket.
     /// @param [in] udpsock UDP socket descriptor.
 
+    // 使用已存在的UDP socket来创建UDP通道，并设置接受/发送缓冲区; 设置TTL / TOS / NONBLOCK / PKT_INFO
     void attach(UDPSOCKET udpsock, const sockaddr_any& adr);
 
     /// Disconnect and close the UDP entity.
@@ -98,21 +102,25 @@ public:
     /// Get the UDP sending buffer size.
     /// @return Current UDP sending buffer size.
 
+    // 调用系统API，获取发送缓冲区大小
     int getSndBufSize();
 
     /// Get the UDP receiving buffer size.
     /// @return Current UDP receiving buffer size.
 
+    // 调用系统API，获取接受缓冲区大小
     int getRcvBufSize();
 
     /// Query the socket address that the channel is using.
     /// @param [out] addr pointer to store the returned socket address.
 
+    // 获取已绑定的本地地址
     void getSockAddr(sockaddr_any& addr) const;
 
     /// Query the peer side socket address that the channel is connect to.
     /// @param [out] addr pointer to store the returned socket address.
 
+    // 获取对端地址
     void getPeerAddr(sockaddr_any& addr) const;
 
     /// Send a packet to the given address.
@@ -169,6 +177,8 @@ public:
     const sockaddr_any& bindAddressAny() { return m_BindAddr; }
 
 private:
+
+    // 调用系统API，设置接受/发送缓冲区; 设置TTL / TOS / NONBLOCK / PKT_INFO
     void setUDPSockOpt();
 
 private:
@@ -178,7 +188,7 @@ private:
     // this comprises the cache for extracted values,
     // although the object itself isn't considered modified.
     mutable CSrtMuxerConfig m_mcfg; // Note: ReuseAddr is unused and ineffective.
-    sockaddr_any            m_BindAddr;
+    sockaddr_any            m_BindAddr;     // bind的本地地址
 
     // This feature is not enabled on Windows, for now.
     // This is also turned off in case of MinGW

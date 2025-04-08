@@ -159,6 +159,7 @@ srt::CChannel::CChannel()
 
 srt::CChannel::~CChannel() {}
 
+// 调用系统API，创建UDP socket
 void srt::CChannel::createSocket(int family)
 {
 #if ENABLE_SOCK_CLOEXEC
@@ -215,6 +216,7 @@ void srt::CChannel::createSocket(int family)
     }
 }
 
+// 创建UDP socket并绑定到addr,设置接受/发送缓冲区; 设置TTL / TOS / NONBLOCK / PKT_INFO
 void srt::CChannel::open(const sockaddr_any& addr)
 {
     createSocket(addr.family());
@@ -232,6 +234,7 @@ void srt::CChannel::open(const sockaddr_any& addr)
     setUDPSockOpt();
 }
 
+// 让系统自动分配一个可用的本地地址，bind并设置接受/发送缓冲区; 设置TTL / TOS / NONBLOCK / PKT_INFO
 void srt::CChannel::open(int family)
 {
     createSocket(family);
@@ -242,10 +245,11 @@ void srt::CChannel::open(int family)
 
     memset(&hints, 0, sizeof(struct addrinfo));
 
-    hints.ai_flags    = AI_PASSIVE;
-    hints.ai_family   = family;
-    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_flags    = AI_PASSIVE;     // 用于绑定的socket
+    hints.ai_family   = family;         // 地址族 IPv4/IPv6
+    hints.ai_socktype = SOCK_DGRAM;     // 套接字类型 UDP
 
+    // 让系统自动分配一个可用的本地地址，通过res返回，记得释放res
     const int eai = ::getaddrinfo(NULL, "0", &hints, &res);
     if (eai != 0)
     {
@@ -260,11 +264,15 @@ void srt::CChannel::open(int family)
     }
 
     // On Windows ai_addrlen has type size_t (unsigned), while bind takes int.
+
+    // bind
     if (0 != ::bind(m_iSocket, res->ai_addr, (socklen_t)res->ai_addrlen))
     {
         ::freeaddrinfo(res);
         throw CUDTException(MJ_SETUP, MN_NORES, NET_ERROR);
     }
+
+    // 将getaddrinfo获取到的本地地址信息保存到m_BindAddr中
     m_BindAddr = sockaddr_any(res->ai_addr, (sockaddr_any::len_t)res->ai_addrlen);
 
 #ifdef SRT_ENABLE_PKTINFO
@@ -280,6 +288,7 @@ void srt::CChannel::open(int family)
     setUDPSockOpt();
 }
 
+// 使用已存在的UDP socket来创建UDP通道，并设置接受/发送缓冲区; 设置TTL / TOS / NONBLOCK / PKT_INFO
 void srt::CChannel::attach(UDPSOCKET udpsock, const sockaddr_any& udpsocks_addr)
 {
     // The getsockname() call is done before calling it and the
@@ -303,6 +312,7 @@ static inline string fmt_alt(bool value, const string& label, const string& unla
     return value ? label : unlabel;
 }
 
+// 调用系统API，设置接受/发送缓冲区; 设置TTL / TOS / NONBLOCK / PKT_INFO
 void srt::CChannel::setUDPSockOpt()
 {
 #if defined(SUNOS)
@@ -396,11 +406,13 @@ void srt::CChannel::setUDPSockOpt()
         throw CUDTException(MJ_SETUP, MN_NORES, NET_ERROR);
 #endif
 
-    bool is_set = false;
-    bool adr_unspec = false, adr_mapped = false, adr_v6 = false;
+    bool is_set = false;    
+    bool adr_unspec = false;        // 是否为any addr
+    bool adr_mapped = false;        // 是否为IPv4映射的IPv6地址
+    bool adr_v6 = false;            // 是否为IPv6地址
     if (m_BindAddr.family() == AF_INET)
     {
-        adr_unspec = m_BindAddr.isany();
+        adr_unspec = m_BindAddr.isany(); // 检查是否为any addr
     }
     else
     {
@@ -409,6 +421,7 @@ void srt::CChannel::setUDPSockOpt()
         adr_v6 = true;
     }
 
+    // 设置TTL
     if (m_mcfg.iIpTTL != -1)
     {
         if (!adr_v6)
@@ -456,6 +469,7 @@ void srt::CChannel::setUDPSockOpt()
         }
     }
 
+    // 设置IP_TOS
     is_set = false;
     if (m_mcfg.iIpToS != -1)
     {
@@ -529,6 +543,7 @@ void srt::CChannel::setUDPSockOpt()
     }
 #endif
 
+    // 设置NONBLOCK
 #ifdef UNIX
     // Set non-blocking I/O
     // UNIX does not support SO_RCVTIMEO
@@ -554,6 +569,7 @@ void srt::CChannel::setUDPSockOpt()
         throw CUDTException(MJ_SETUP, MN_NORES, NET_ERROR);
 #endif
 
+    // 设置IP_PKTINFO，接收时可以获取数据包的目标IP地址和达到接口的索引；发送时可以指定源IP地址和出站接口
 #ifdef SRT_ENABLE_PKTINFO
     if (m_bBindMasked)
     {
@@ -585,6 +601,7 @@ void srt::CChannel::close() const
 #endif
 }
 
+// 调用系统API，获取发送缓冲区大小
 int srt::CChannel::getSndBufSize()
 {
     socklen_t size = (socklen_t)sizeof m_mcfg.iUDPSndBufSize;
@@ -592,6 +609,7 @@ int srt::CChannel::getSndBufSize()
     return m_mcfg.iUDPSndBufSize;
 }
 
+// 调用系统API，获取接受缓冲区大小
 int srt::CChannel::getRcvBufSize()
 {
     socklen_t size = (socklen_t)sizeof m_mcfg.iUDPRcvBufSize;
@@ -699,6 +717,7 @@ int srt::CChannel::sockoptQuery(int level SRT_ATR_UNUSED, int option SRT_ATR_UNU
     return -1;
 }
 
+// 获取已绑定的本地地址
 void srt::CChannel::getSockAddr(sockaddr_any& w_addr) const
 {
     // The getsockname function requires only to have enough target
@@ -710,6 +729,7 @@ void srt::CChannel::getSockAddr(sockaddr_any& w_addr) const
     w_addr.len = namelen;
 }
 
+// 获取对端地址
 void srt::CChannel::getPeerAddr(sockaddr_any& w_addr) const
 {
     socklen_t namelen = (socklen_t)w_addr.storage_size();
@@ -717,6 +737,7 @@ void srt::CChannel::getPeerAddr(sockaddr_any& w_addr) const
     w_addr.len = namelen;
 }
 
+// 发送数据
 int srt::CChannel::sendto(const sockaddr_any& addr, CPacket& packet, const sockaddr_any& source_addr SRT_ATR_UNUSED) const
 {
 #if ENABLE_HEAVY_LOGGING
@@ -739,27 +760,30 @@ int srt::CChannel::sendto(const sockaddr_any& addr, CPacket& packet, const socka
 #undef FAKELOSS_STRING
 #undef FAKELOSS_WRAP
 
-    static int dcounter   = 0;
-    static int flwcounter = 0;
+    static int dcounter   = 0;      // 数据包计数器
+    static int flwcounter = 0;      // 模拟丢包计数器
 
+    // 用于模拟网络丢包的配置结构体
     struct FakelossConfig
     {
-        pair<int, int> config;
+        pair<int, int> config;      // {3， 8} 每隔8个包后连续丢3个包；{3, 12} 每隔12个包后连续丢3个包
         FakelossConfig(const char* f)
         {
             vector<string> out;
-            Split(f, '+', back_inserter(out));
+            Split(f, '+', back_inserter(out));  // 按 '+' 分割字符串
 
-            config.first  = atoi(out[0].c_str());
-            config.second = out.size() > 1 ? atoi(out[1].c_str()) : 8;
+            config.first  = atoi(out[0].c_str());                       
+            config.second = out.size() > 1 ? atoi(out[1].c_str()) : 8;  
         }
     };
     static FakelossConfig fakeloss = fakeloss_text;
 
+    // 数据包，并不是控制包
     if (!packet.isControl())
     {
         ++dcounter;
 
+        // 模拟丢包，flwcounter为连续丢包数
         if (flwcounter)
         {
             // This is a counter of how many packets in a row shall be lost
@@ -767,21 +791,23 @@ int srt::CChannel::sendto(const sockaddr_any& addr, CPacket& packet, const socka
             HLOGC(kslog.Debug,
                   log << "CChannel: TEST: FAKE LOSS OF %" << packet.getSeqNo() << " (" << flwcounter
                       << " more to drop)");
-            return packet.getLength(); // fake successful sendinf
+            return packet.getLength();          // fake successful sendinf，通过返回包长度来模拟发送成功，实际上包并没有发出去
         }
 
+        // 模拟丢包
         if (dcounter > 8)
         {
             // Make a random number in the range between 8 and 24
-            const int rnd = srt::sync::genRandomInt(8, 24);
+            const int rnd = srt::sync::genRandomInt(8, 24);         // 生成一个8~24的随机数
 
+            // 发包总数超过随机阈值
             if (dcounter > rnd)
             {
-                dcounter = 1;
+                dcounter = 1;           // 重置计数器
                 HLOGC(kslog.Debug,
                       log << "CChannel: TEST: FAKE LOSS OF %" << packet.getSeqNo() << " (will drop "
                           << fakeloss.config.first << " more)");
-                flwcounter = fakeloss.config.first;
+                flwcounter = fakeloss.config.first;     // 连续丢包数
                 return packet.getLength(); // fake successful sendinf
             }
         }
