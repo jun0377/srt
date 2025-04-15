@@ -210,18 +210,18 @@ enum UDTSockType
 /// protocol and should never be changed.
 enum UDTMessageType
 {
-    UMSG_HANDSHAKE = 0, //< Connection Handshake. Control: see @a CHandShake.
-    UMSG_KEEPALIVE = 1, //< Keep-alive.
-    UMSG_ACK = 2, //< Acknowledgement. Control: past-the-end sequence number up to which packets have been received.
-    UMSG_LOSSREPORT = 3, //< Negative Acknowledgement (NAK). Control: Loss list.
-    UMSG_CGWARNING = 4, //< Congestion warning.
-    UMSG_SHUTDOWN = 5, //< Shutdown.
-    UMSG_ACKACK = 6, //< Acknowledgement of Acknowledgement. Add info: The ACK sequence number
-    UMSG_DROPREQ = 7, //< Message Drop Request. Add info: Message ID. Control Info: (first, last) number of the message.
-    UMSG_PEERERROR = 8, //< Signal from the Peer side. Add info: Error code.
+    UMSG_HANDSHAKE = 0, //< 握手报文， Connection Handshake. Control: see @a CHandShake.
+    UMSG_KEEPALIVE = 1, //< 保活报文， Keep-alive.
+    UMSG_ACK = 2, //< ACK确认报文，Acknowledgement. Control: past-the-end sequence number up to which packets have been received.
+    UMSG_LOSSREPORT = 3, //< NACK丢包报告， Negative Acknowledgement (NAK). Control: Loss list.
+    UMSG_CGWARNING = 4, //< 拥塞警告，Congestion warning.
+    UMSG_SHUTDOWN = 5, //< 关闭连接，Shutdown.
+    UMSG_ACKACK = 6, //< 对ACK的确认报文，Acknowledgement of Acknowledgement. Add info: The ACK sequence number
+    UMSG_DROPREQ = 7, //< 主动丢弃报文，Message Drop Request. Add info: Message ID. Control Info: (first, last) number of the message.
+    UMSG_PEERERROR = 8, //< 对端发来的错误信号，Signal from the Peer side. Add info: Error code.
     // ... add extra code types here
     UMSG_END_OF_TYPES,
-    UMSG_EXT = 0x7FFF //< For the use of user-defined control packets.
+    UMSG_EXT = 0x7FFF //< 用户自定义控制包， For the use of user-defined control packets.
 };
 
 // This side's role is: INITIATOR prepares the environment first, and sends
@@ -729,6 +729,7 @@ public:
    static const int32_t m_iMaxAckSeqNo = 0x7FFFFFFF;         // maximum ACK sub-sequence number used in UDT
 };
 
+// 循环滚动的序号系统，用于处理序列号/消息号等需要循环使用的数值; BITS-数值位数；MIN-最小值
 template <size_t BITS, uint32_t MIN = 0>
 class RollNumber
 {
@@ -738,10 +739,13 @@ class RollNumber
 
 public:
 
+    // 回滚点，最大值+1
     static const size_t OVER = number_t::mask+1;
+    // 两个数字间距离的中点值
     static const size_t HALF = (OVER-MIN)/2;
 
 private:
+    // 计算连个数字的实际差值，考虑了回滚的情况
     static int Diff(uint32_t left, uint32_t right)
     {
         // UNExpected order, diff is negative
@@ -773,6 +777,7 @@ public:
     {
     }
 
+    // 序号比较，考虑了回滚的情况
     bool operator<(const this_t& right) const
     {
         int32_t ndiff = number - right.number;
@@ -791,6 +796,7 @@ public:
         return ndiff < 0;
     }
 
+    // 序号比较，复用了已实现的<操作符，妙啊
     bool operator>(const this_t& right) const
     {
         return right < *this;
@@ -811,6 +817,7 @@ public:
         return !(*this < right);
     }
 
+    // 后置++,序号自增
     void operator++(int)
     {
         ++number;
@@ -818,8 +825,10 @@ public:
             number = MIN;
     }
 
+    // 前置++,序号自增，复用了后置++的实现
     this_t& operator++() { (*this)++; return *this; }
 
+    // 后置--,序号自减
     void operator--(int)
     {
         if (number == MIN)
@@ -827,13 +836,17 @@ public:
         else
             --number;
     }
+
+    // 前置--，复用了后置--的实现
     this_t& operator--() { (*this)--; return *this; }
 
+    // 两个序号的差值，复用了Diff函数
     int32_t operator-(this_t right)
     {
         return Diff(this->number, right.number);
     }
 
+    // 序号增加delta, delta可以为负数
     void operator+=(int32_t delta)
     {
         // NOTE: this condition in practice tests if delta is negative.
@@ -851,6 +864,7 @@ public:
         }
     }
 
+    // 类型转换运算符
     operator uint32_t() const { return number; }
 };
 

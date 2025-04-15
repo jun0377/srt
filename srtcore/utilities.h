@@ -292,11 +292,21 @@ inline void ItoHLA(uint32_t* dst, const uint32_t* src, size_t size)
 // (rightmost defaults to leftmost)
 // REMEMBER: leftmost > rightmost because bit 0 is the LEAST significant one!
 
+// 模板结构体，用于生成位掩码; L-左边界 R-有边界  parent_correct-编译时进行检查，要求左边界必须大于有边界
 template <size_t L, size_t R, bool parent_correct = true>
 struct BitsetMask
 {
-    static const bool correct = L >= R;
-    static const uint32_t value = (1u << L) | BitsetMask<L-1, R, correct>::value;
+    static const bool correct = L >= R; // 检查左边界是否大于右边界
+    static const uint32_t value = (1u << L) | BitsetMask<L-1, R, correct>::value;   // 递归方式创建位掩码
+    
+    /*
+        // 例如 L=3, R=1 时的递归展开:
+        BitsetMask<3,1>::value
+        = (1<<3) | BitsetMask<2,1>::value
+        = (1<<3) | (1<<2) | BitsetMask<1,1>::value
+        = (1<<3) | (1<<2) | (1<<1)
+        = 0b1110 // 最终生成掩码
+    */
 };
 
 // This is kind-of functional programming. This describes a special case that is
@@ -317,28 +327,36 @@ struct BitsetMask<L, R, false>
 {
 };
 
+// 用于uint32_t的位域操作， L-左边界 R-右边界
 template <size_t L, size_t R = L>
 struct Bits
 {
     // DID YOU GET a kind-of error: 'mask' is not a member of 'Bits<3u, 5u, false>'?
     // See the the above declaration of 'correct'!
-    static const uint32_t mask = BitsetMask<L, R>::value;
-    static const uint32_t offset = R;
-    static const size_t size = L - R + 1;
+    static const uint32_t mask = BitsetMask<L, R>::value;   // 生成位掩码
+    static const uint32_t offset = R;                       // 表示位域的起始位置，用于位移操作时的偏移量
+    static const size_t size = L - R + 1;                   // 位域宽度
 
     // Example: if our bitset mask is 00111100, this checks if given value fits in
     // 00001111 mask (that is, does not exceed <0, 15>.
+
+    // 检查一个值是否适合放在指定的位域中
     static bool fit(uint32_t value) { return (BitsetMask<L-R, 0>::value & value) == value; }
 
     /// 'wrap' gets some given value that should be placed in appropriate bit range and
     /// returns a whole 32-bit word that has the value already at specified place.
     /// To create a 32-bit container that contains already all values destined for different
     /// bit ranges, simply use wrap() for each of them and bind them with | operator.
+
+    // 将一个值放在指定的位域中，并返回一个包含该值的32位整数
     static uint32_t wrap(uint32_t baseval) { return (baseval << offset) & mask; }
 
     /// Extracts appropriate bit range and returns them as normal integer value.
+
+    // 从位域中提取值
     static uint32_t unwrap(uint32_t bitset) { return (bitset & mask) >> offset; }
 
+    // 首先调用 unwrap 从位域中提取值，然后使用 static_cast 将提取的 uint32_t 值转换为目标类型 T
     template<class T>
     static T unwrapt(uint32_t bitset) { return static_cast<T>(unwrap(bitset)); }
 };

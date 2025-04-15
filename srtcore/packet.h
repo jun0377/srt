@@ -66,6 +66,9 @@ namespace srt
 // The purpose of the IOVector class is to proide a platform-independet interface
 // to the WSABUF on Windows and iovec on Linux, that can be easilly converted
 // to the native structure for use in WSARecvFrom() and recvmsg(...) functions
+
+// 提供一个和平台无关的接口，封装一个ivoec结构，在Windows上是WSABUF，在Linux上是iovec
+// 用于网络IO操作中的数据缓冲区
 class IOVector
 #ifdef _WIN32
     : public WSABUF
@@ -76,6 +79,7 @@ class IOVector
 public:
     IOVector() { set(NULL, 0); }
 
+    // 设置数据缓冲区的起始地址和长度
     inline void set(void* buffer, size_t length)
     {
 #ifdef _WIN32
@@ -87,6 +91,7 @@ public:
 #endif
     }
 
+    // 获取数据缓冲区的起始地址，注意返回的是一个指针的引用，可以修改数据
     inline char*& dataRef()
     {
 #ifdef _WIN32
@@ -96,6 +101,7 @@ public:
 #endif
     }
 
+    // 获取数据缓冲区的起始地址，注意返回的是普通指针，只能读取数据
     inline char* data()
     {
 #ifdef _WIN32
@@ -105,6 +111,7 @@ public:
 #endif
     }
 
+    // 获取数据缓冲区的长度
     inline size_t size() const
     {
 #ifdef _WIN32
@@ -114,6 +121,7 @@ public:
 #endif
     }
 
+    // 设置数据缓冲区的长度
     inline void setLength(size_t length)
     {
 #ifdef _WIN32
@@ -125,96 +133,122 @@ public:
 };
 
 /// To define packets in order in the buffer. This is public due to being used in buffer.
+// 表示SRT数据包在消息中的位置和边界信息
 enum PacketBoundary
 {
-    PB_SUBSEQUENT = 0, // 00: a packet in the middle of a message, neither the first, not the last.
-    PB_LAST       = 1, // 01: last packet of a message
-    PB_FIRST      = 2, // 10: first packet of a message
-    PB_SOLO       = 3, // 11: solo message packet
+    PB_SUBSEQUENT = 0, // 中间的包 00: a packet in the middle of a message, neither the first, not the last.
+    PB_LAST       = 1, // 最后一个包 01: last packet of a message
+    PB_FIRST      = 2, // 第一个包 10: first packet of a message
+    PB_SOLO       = 3, // 当前SRT包是一个完整的消息 11: solo message packet
 };
 
 // Breakdown of the PM_SEQNO field in the header:
+// 包头的序列号字段
+
 //  C| X X ... X, where:
+// 最高位(31) 用作控制标志位
 typedef Bits<31> SEQNO_CONTROL;
+
 //  1|T T T T T T T T T T T T T T T|E E...E
+// 当最高位为1，即表示一个控制报文时 bit[30:16] 表示消息类型
 typedef Bits<30, 16> SEQNO_MSGTYPE;
+// bid[15:0] 表示扩展类型
 typedef Bits<15, 0>  SEQNO_EXTTYPE;
+
 //  0|S S ... S
+// 当最高位为0，即表示一个普通数据报文时，bit[30:0] 用作数据包的序列号
 typedef Bits<30, 0> SEQNO_VALUE;
 
 // This bit cannot be used by SEQNO anyway, so it's additionally used
 // in LOSSREPORT data specification to define that this value is the
 // BEGIN value for a SEQNO range (to distinguish it from a SOLO loss SEQNO value).
+
+// 丢包报告中序列号范围的起始值
 const int32_t LOSSDATA_SEQNO_RANGE_FIRST = SEQNO_CONTROL::mask;
 
 // Just cosmetics for readability.
+// LOSSDATA_SEQNO_RANGE_LAST-丢包报告中序列号范围的结束值; LOSSDATA_SEQNO_SOLO-标记单个丢包
 const int32_t LOSSDATA_SEQNO_RANGE_LAST = 0, LOSSDATA_SEQNO_SOLO = 0;
 
+// 根据消息类型创建控制包的序列号
 inline int32_t CreateControlSeqNo(UDTMessageType type)
 {
     return SEQNO_CONTROL::mask | SEQNO_MSGTYPE::wrap(uint32_t(type));
 }
 
+// 用于创建扩展控制包的序列号
 inline int32_t CreateControlExtSeqNo(int exttype)
 {
     return SEQNO_CONTROL::mask | SEQNO_MSGTYPE::wrap(size_t(UMSG_EXT)) | SEQNO_EXTTYPE::wrap(exttype);
 }
 
 // MSGNO breakdown: B B|O|K K|R|M M M M M M M M M M...M
-typedef Bits<31, 30> MSGNO_PACKET_BOUNDARY;
-typedef Bits<29>     MSGNO_PACKET_INORDER;
-typedef Bits<28, 27> MSGNO_ENCKEYSPEC;
+typedef Bits<31, 30> MSGNO_PACKET_BOUNDARY;         // BB - 消息边界信息
+typedef Bits<29>     MSGNO_PACKET_INORDER;          // O - 是否需要按序交付
+typedef Bits<28, 27> MSGNO_ENCKEYSPEC;              // KK - 加密密钥规格 00=不加密，01=偶数密钥，10=奇数密钥            
 #if 1 // can block rexmit flag
 // New bit breakdown - rexmit flag supported.
-typedef Bits<26>    MSGNO_REXMIT;
-typedef Bits<25, 0> MSGNO_SEQ;
+typedef Bits<26>    MSGNO_REXMIT;                   // R - 标记是否为重传包
+typedef Bits<25, 0> MSGNO_SEQ;                      // 26位序列号
 // Old bit breakdown - no rexmit flag
-typedef Bits<26, 0> MSGNO_SEQ_OLD;
+typedef Bits<26, 0> MSGNO_SEQ_OLD;                  // 旧版本的27位序列号，不支持重传标记
 // This symbol is for older SRT version, where the peer does not support the MSGNO_REXMIT flag.
 // The message should be extracted as PMASK_MSGNO_SEQ, if REXMIT is supported, and PMASK_MSGNO_SEQ_OLD otherwise.
 
+// PACKET_SND_NORMAL - 普通数据包; PACKET_SND_REXMIT - 重传数据包
 const uint32_t PACKET_SND_NORMAL = 0, PACKET_SND_REXMIT = MSGNO_REXMIT::mask;
+// 消息序列号的最大值
 const int      MSGNO_SEQ_MAX = MSGNO_SEQ::mask;
 
 #else
 // Old bit breakdown - no rexmit flag
+// 旧的消息序列号
 typedef Bits<26, 0> MSGNO_SEQ;
 #endif
 
+// 消息号
 typedef RollNumber<MSGNO_SEQ::size - 1, 1> MsgNo;
 
-// constexpr in C++11 !
+// constexpr in C++11 ! 将枚举值转换为消息号中边界位
 inline int32_t PacketBoundaryBits(PacketBoundary o)
 {
     return MSGNO_PACKET_BOUNDARY::wrap(int32_t(o));
 }
 
+// 加密密钥规格
 enum EncryptionKeySpec
 {
-    EK_NOENC = 0,
-    EK_EVEN  = 1,
-    EK_ODD   = 2
+    EK_NOENC = 0,   // 不加密
+    EK_EVEN  = 1,   // 使用偶数密钥
+    EK_ODD   = 2    // 使用奇数密钥
 };
 
+// 加密状态
 enum EncryptionStatus
 {
-    ENCS_CLEAR  = 0,
-    ENCS_FAILED = -1,
-    ENCS_NOTSUP = -2
+    ENCS_CLEAR  = 0,    // 正常
+    ENCS_FAILED = -1,   // 加密失败
+    ENCS_NOTSUP = -2    // 不支持加密
 };
 
+// 加密密钥掩码
 const int32_t  PMASK_MSGNO_ENCKEYSPEC = MSGNO_ENCKEYSPEC::mask;
+// 将加密规格转换为消息号中对应的位值
 inline int32_t EncryptionKeyBits(EncryptionKeySpec f)
 {
     return MSGNO_ENCKEYSPEC::wrap(int32_t(f));
 }
+
+// 从消息号中提取加密密钥规格
 inline EncryptionKeySpec GetEncryptionKeySpec(int32_t msgno)
 {
     return EncryptionKeySpec(MSGNO_ENCKEYSPEC::unwrap(msgno));
 }
 
+// 探测包的掩码常量，限制了探测包的序列号范围在[15:0]之间
 const int32_t PUMASK_SEQNO_PROBE = 0xF;
 
+// 将消息字段转换为可读的字符串描述
 std::string PacketMessageFlagStr(uint32_t msgno_field);
 
 /*
@@ -401,6 +435,8 @@ public:
 protected:
     // DynamicStruct is the same as array of given type and size, just it
     // enforces that you index it using a symbol from symbolic enum type, not by a bare integer.
+
+    // 128 bits header
     typedef DynamicStruct<uint32_t, SRT_PH_E_SIZE, SrtPktHeaderFields> HEADER_TYPE;
     HEADER_TYPE                                                        m_nHeader; //< The 128-bit header field
 
