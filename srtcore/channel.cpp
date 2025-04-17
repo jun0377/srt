@@ -144,8 +144,9 @@ srt::CChannel::CChannel()
 {
 #ifdef SRT_ENABLE_PKTINFO
    // Do the check for ancillary data buffer size, kinda assertion
-   static const size_t CMSG_MAX_SPACE = sizeof (CMSGNodeIPv4) + sizeof (CMSGNodeIPv6);
 
+   // 确保控制消息缓冲区大小足够存储IPv4+IPv6的包信息
+   static const size_t CMSG_MAX_SPACE = sizeof (CMSGNodeIPv4) + sizeof (CMSGNodeIPv6);
    if (CMSG_MAX_SPACE < CMSG_SPACE(sizeof(in_pktinfo)) + CMSG_SPACE(sizeof(in6_pktinfo)))
    {
        LOGC(kmlog.Fatal, log << "Size of CMSG_MAX_SPACE="
@@ -737,7 +738,7 @@ void srt::CChannel::getPeerAddr(sockaddr_any& w_addr) const
     w_addr.len = namelen;
 }
 
-// 发送数据
+// 发送数据，发送时可以模拟网络丢包
 int srt::CChannel::sendto(const sockaddr_any& addr, CPacket& packet, const sockaddr_any& source_addr SRT_ATR_UNUSED) const
 {
 #if ENABLE_HEAVY_LOGGING
@@ -752,6 +753,7 @@ int srt::CChannel::sendto(const sockaddr_any& addr, CPacket& packet, const socka
              << dsrc.str() << " " << packet.Info());
 #endif
 
+// 模拟网络丢包
 #ifdef SRT_TEST_FAKE_LOSS
 
 #define FAKELOSS_STRING_0(x) #x
@@ -816,6 +818,7 @@ int srt::CChannel::sendto(const sockaddr_any& addr, CPacket& packet, const socka
 #endif
 
     // convert control information into network order
+    // 转为网络字节序
     packet.toNetworkByteOrder();
 
 #ifndef _WIN32

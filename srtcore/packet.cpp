@@ -198,20 +198,28 @@ char* CPacket::getData()
     return (char*)m_PacketVector[PV_DATA].dataRef();
 }
 
+// 在堆上为数据域分配缓冲区空间，并没有分配头部域空间
 void CPacket::allocate(size_t alloc_buffer_size)
 {
+    // 当前CPacket对象已经分配了缓冲区空间
     if (m_data_owned)
     {
+        // 缓冲区大小正好和alloc_buffer_size相同，不需要重新分配，直接return
         if (getLength() == alloc_buffer_size)
             return; // already allocated
 
         // Would be nice to reallocate; for now just allocate again.
+
+        // 缓冲区大小和alloc_buffer_size不同，释放旧的空间，重新分配
         delete[] m_pcData;
     }
+
+    // 为数据域分配新的缓冲区空间
     m_PacketVector[PV_DATA].set(new char[alloc_buffer_size], alloc_buffer_size);
     m_data_owned = true;
 }
 
+// 释放数据域的堆内存
 void CPacket::deallocate()
 {
     if (m_data_owned)
@@ -241,16 +249,19 @@ CPacket::~CPacket()
     deallocate();
 }
 
+// 获取数据域的容量
 size_t CPacket::getLength() const
 {
     return m_PacketVector[PV_DATA].size();
 }
 
+// 设置数据域的负载长度
 void CPacket::setLength(size_t len)
 {
     m_PacketVector[PV_DATA].setLength(len);
 }
 
+// 同时设置数据域的负载长度和容量
 void CPacket::setLength(size_t len, size_t cap)
 {
    SRT_ASSERT(len <= cap);
@@ -322,15 +333,19 @@ static std::string FormatNumbers(UDTMessageType pkttype, const int32_t* lparam, 
 }
 #endif
 
+// 封装一个控制包: 握手包 / 心跳包 / 确认包 / 丢包报告包 / 拥塞警告 / 关闭丽娜姐 / 主动丢弃 / 对端错误 / 对ACK的确认
 void CPacket::pack(UDTMessageType pkttype, const int32_t* lparam, void* rparam, size_t size)
 {
-    // Set (bit-0 = 1) and (bit-1~15 = type)
+    // 设置控制包类型 Set (bit-0 = 1) and (bit-1~15 = type)
     setControl(pkttype);
     HLOGC(inlog.Debug, log << "pack: type=" << MessageTypeStr(pkttype) << " " << FormatNumbers(pkttype, lparam, rparam, size));
 
     // Set additional information and control information field
+
+    // 根据不同的控制包类型，设置不同的头部字段
     switch (pkttype)
     {
+        // 确认报文
     case UMSG_ACK: // 0010 - Acknowledgement (ACK)
         // ACK packet seq. no.
         if (NULL != lparam)
@@ -432,6 +447,7 @@ void CPacket::pack(UDTMessageType pkttype, const int32_t* lparam, void* rparam, 
     }
 }
 
+// 转为网络字节序
 void CPacket::toNetworkByteOrder()
 {
     // The payload of data packet should remain in network byte order.
@@ -458,21 +474,25 @@ void CPacket::toHostByteOrder()
     }
 }
 
+// 获取数据包存储的地址, 包括头部和数据部分
 IOVector* CPacket::getPacketVector()
 {
     return m_PacketVector;
 }
 
+// 获取控制包类型
 UDTMessageType CPacket::getType() const
 {
     return UDTMessageType(SEQNO_MSGTYPE::unwrap(m_nHeader[SRT_PH_SEQNO]));
 }
 
+// 获取控制包的扩展类型
 int CPacket::getExtendedType() const
 {
     return SEQNO_EXTTYPE::unwrap(m_nHeader[SRT_PH_SEQNO]);
 }
 
+// 获取 ACK-2 报文的消息号
 int32_t CPacket::getAckSeqNo() const
 {
     // read additional information field

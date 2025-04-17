@@ -91,8 +91,8 @@ struct CSrtMuxerConfig
 #ifdef SRT_ENABLE_BINDTODEVICE
     std::string sBindToDevice;
 #endif
-    int iUDPSndBufSize; // UDP sending buffer size
-    int iUDPRcvBufSize; // UDP receiving buffer size
+    int iUDPSndBufSize; // UDP发送缓冲区大小, UDP sending buffer size
+    int iUDPRcvBufSize; // UDP接受缓冲区大小, UDP receiving buffer size
 
     // NOTE: this operator is not reversable. The syntax must use:
     //  muxer_entry == socket_entry

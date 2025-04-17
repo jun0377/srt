@@ -75,6 +75,8 @@ public:
     // whatever the channel is currently working for. Required to find
     // some way to do this, possibly by having a "reverse pointer".
     // Currently just "unimplemented".
+
+    // 暂未实现
     std::string CONID() const { return ""; }
 
     CChannel();
@@ -97,6 +99,7 @@ public:
 
     /// Disconnect and close the UDP entity.
 
+    // 调用系统API 关闭UDP socket
     void close() const;
 
     /// Get the UDP sending buffer size.
@@ -129,6 +132,7 @@ public:
     /// @param [in] src source address to sent on an outgoing packet (if not ANY)
     /// @return Actual size of data sent.
 
+    // 发送数据包到指定地址, src参数没有使用
     int sendto(const sockaddr_any& addr, srt::CPacket& packet, const sockaddr_any& src) const;
 
     /// Receive a packet from the channel and record the source address.
@@ -136,6 +140,7 @@ public:
     /// @param [in] packet reference to a CPacket entity.
     /// @return Actual size of data received.
 
+    // 接收数据包
     EReadStatus recvfrom(sockaddr_any& addr, srt::CPacket& packet) const;
 
     void setConfig(const CSrtMuxerConfig& config);
@@ -205,13 +210,17 @@ private:
     // This structure is exclusively used to determine the required size for
     // CMSG buffer so that it can be allocated in a solid block with CChannel.
     // NOT TO BE USED to access any data inside the CMSG message.
+
+
+    // 计算IPv4控制消息缓冲区大小的结构体
     struct CMSGNodeIPv4
     {
-        in_pktinfo in4;
-        size_t extrafill;
-        cmsghdr hdr;
+        in_pktinfo in4;         // IPv4数据包信息
+        size_t extrafill;       // 额外的填充空间
+        cmsghdr hdr;            // 控制消息头
     };
 
+    // 计算IPv6控制消息缓冲区大小的结构体
     struct CMSGNodeIPv6
     {
         in6_pktinfo in6;

@@ -111,7 +111,7 @@ public:
 #endif
     }
 
-    // 获取数据缓冲区的长度
+    // 获取数据缓冲区的容量
     inline size_t size() const
     {
 #ifdef _WIN32
@@ -121,7 +121,7 @@ public:
 #endif
     }
 
-    // 设置数据缓冲区的长度
+    // 设置数据缓冲区的容量
     inline void setLength(size_t length)
     {
 #ifdef _WIN32
@@ -251,66 +251,6 @@ const int32_t PUMASK_SEQNO_PROBE = 0xF;
 // 将消息字段转换为可读的字符串描述
 std::string PacketMessageFlagStr(uint32_t msgno_field);
 
-/*
-
-- 使用IOVector实现零拷贝
-- 灵活的消息边界控制
-- 内置加密支持
-- 支持包重传
-- 精确的时间戳控制
-- 最大有效payload: 1456 bytes
-
-+------------------------------------------------------------------+
-|                        CPacket 结构布局                            |
-+------------------------------------------------------------------+
-
-1. 物理层结构 (Maximum MTU = 1500 bytes)
-+------------------------+-----------------+-------------------------+
-|     UDP Header         |   SRT Header   |        Payload         |
-|       (28 B)          |    (16 B)      |    (最大 1456 B)       |
-+------------------------+-----------------+-------------------------+
-
-2. SRT Header 结构 (16 bytes = 128 bits)
-+----------------+----------------+----------------+----------------+
-|   SRT_PH_SEQNO |  SRT_PH_MSGNO |SRT_PH_TIMESTAMP|  SRT_PH_ID   |
-|    序列号      |    消息号     |    时间戳      |  Socket ID   |
-|   (32 bits)    |   (32 bits)   |   (32 bits)    |  (32 bits)   |
-+----------------+----------------+----------------+----------------+
-
-3. 消息号字段 (SRT_PH_MSGNO) 详细结构
-+----------+-----+--------+-----+--------------------------------+
-|    BB    |  O  |   KK   |  R  |              MM               |
-| 边界标记  | 顺序| 加密键  |重传 |          消息序列号           |
-|  2 bits  | 1b  | 2bits  | 1b  |           26 bits             |
-+----------+-----+--------+-----+--------------------------------+
-BB: 00(中间包), 01(尾包), 10(首包), 11(独立包)
-O:  0(无序), 1(有序)
-KK: 00(无加密), 01(偶数密钥), 10(奇数密钥)
-R:  0(首次发送), 1(重传包)
-
-4. 序列号字段 (SRT_PH_SEQNO) 详细结构
-+---+------------------------------------------------+
-| C |                     序列号                      |
-+---+------------------------------------------------+
-|1b |                    31 bits                      |
-+---+------------------------------------------------+
-C=0: 数据包，后31位为序列号
-C=1: 控制包，后31位分为类型(15位)和扩展类型(16位)
-
-5. 内存布局
-+------------------+
-| m_nHeader        | 包头 (16字节)
-+------------------+
-| m_PacketVector   | 数据向量 [header, data]
-+------------------+
-| m_pcData         | 数据指针
-+------------------+
-| m_DestAddr       | 目标地址
-+------------------+
-| m_zCapacity      | 容量
-+------------------+
-
-*/
 class CPacket
 {
     friend class CChannel;
@@ -321,20 +261,28 @@ public:
     CPacket();
     ~CPacket();
 
+    // 在堆上为数据域分配缓冲区空间，并没有分配头部域空间
     void allocate(size_t size);
+    // 释放数据域的堆内存
     void deallocate();
 
     /// Get the payload or the control information field length.
     /// @return the payload or the control information field length.
+    
+    // 获取数据域容量
     size_t getLength() const;
 
     /// Set the payload or the control information field length.
     /// @param len [in] the payload or the control information field length.
+    
+    // 设置数据域的容量
     void setLength(size_t len);
 
     /// Set the payload or the control information field length.
     /// @param len [in] the payload or the control information field length.
     /// @param cap [in] capacity (if known).
+
+    // 同时设置数据域的负载长度和容量
     void setLength(size_t len, size_t cap);
 
     /// Pack a Control packet.
@@ -342,30 +290,44 @@ public:
     /// @param lparam [in] pointer to the first data structure, explained by the packet type.
     /// @param rparam [in] pointer to the second data structure, explained by the packet type.
     /// @param size [in] size of rparam, in number of bytes;
+
+    // 封装一个控制包: 握手包 / 心跳包 / 确认包 / 丢包报告包 / 拥塞警告 / 关闭丽娜姐 / 主动丢弃 / 对端错误 / 对ACK的确认
     void pack(UDTMessageType pkttype, const int32_t* lparam = NULL, void* rparam = NULL, size_t size = 0);
 
     /// Read the packet vector.
     /// @return Pointer to the packet vector.
+
+    // 获取数据包存储的地址, 包括头部和数据部分
     IOVector* getPacketVector();
 
+    // 获取数据包的头部信息
     uint32_t* getHeader() { return m_nHeader; }
 
     /// Read the packet type.
     /// @return packet type filed (000 ~ 111).
+    
+    // 获取控制包类型
     UDTMessageType getType() const;
 
+    // 判断是否是指定类型的控制包
     bool isControl(UDTMessageType type) const { return isControl() && type == getType(); }
 
+    // 判断是否是一个控制包
     bool isControl() const { return 0 != SEQNO_CONTROL::unwrap(m_nHeader[SRT_PH_SEQNO]); }
 
+    // 设置控制包的类型
     void setControl(UDTMessageType type) { m_nHeader[SRT_PH_SEQNO] = SEQNO_CONTROL::mask | SEQNO_MSGTYPE::wrap(type); }
 
     /// Read the extended packet type.
     /// @return extended packet type filed (0x000 ~ 0xFFF).
+
+    // 获取控制包的扩展类型
     int getExtendedType() const;
 
     /// Read the ACK-2 seq. no.
     /// @return packet header field (bit 16~31).
+
+    // 获取 ACK-2 报文的消息号
     int32_t getAckSeqNo() const;
 
     uint16_t getControlFlags() const;
@@ -420,8 +382,8 @@ public:
 
     enum PacketVectorFields
     {
-        PV_HEADER = 0,
-        PV_DATA   = 1,
+        PV_HEADER = 0,  // 头部域索引
+        PV_DATA   = 1,  // 数据域索引
 
         PV_SIZE = 2
     };
@@ -440,12 +402,13 @@ protected:
     typedef DynamicStruct<uint32_t, SRT_PH_E_SIZE, SrtPktHeaderFields> HEADER_TYPE;
     HEADER_TYPE                                                        m_nHeader; //< The 128-bit header field
 
+    // 存储空间，包括头部和数据： m_PacketVector[0]存储头部；m_PacketVector[1]存储数据
     IOVector m_PacketVector[PV_SIZE]; //< The two-dimensional vector of an SRT packet [header, data]
 
-    int32_t m_extra_pad;
-    bool    m_data_owned;
-    sockaddr_any m_DestAddr;
-    size_t  m_zCapacity;
+    int32_t m_extra_pad;        // 额外填充字节，用于内存对齐
+    bool    m_data_owned;       // 数据缓冲区的所有权：true，表示数据缓冲区由当前包对象拥有，在析构时需要释放; false，表示数据缓冲区由外部管理，析构时不需要释放
+    sockaddr_any m_DestAddr;    // 数据包的目的地址
+    size_t  m_zCapacity;        // 数据缓冲区的容量，注意：是容量大小，并不是实际的数据长度
 
 protected:
     CPacket& operator=(const CPacket&);

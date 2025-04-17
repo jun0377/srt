@@ -267,9 +267,9 @@ std::string MessageTypeStr(UDTMessageType mt, uint32_t extt = 0);
 // Commonly used by various reading facilities
 enum EReadStatus
 {
-    RST_OK = 0,      //< A new portion of data has been received
-    RST_AGAIN,       //< Nothing has been received, try again
-    RST_ERROR = -1   //< Irrecoverable error, please close descriptor and stop reading.
+    RST_OK = 0,      // 读取成功，< A new portion of data has been received
+    RST_AGAIN,       // 当前没有数据可读，稍后再试 < Nothing has been received, try again
+    RST_ERROR = -1   // 发生了错误，需要关闭文件描述符 < Irrecoverable error, please close descriptor and stop reading.
 };
 
 enum EConnectStatus
