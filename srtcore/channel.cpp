@@ -618,11 +618,13 @@ int srt::CChannel::getRcvBufSize()
     return m_mcfg.iUDPRcvBufSize;
 }
 
+// 设置多路复用器参数
 void srt::CChannel::setConfig(const CSrtMuxerConfig& config)
 {
     m_mcfg = config;
 }
 
+// 获取系统套接字属性
 void srt::CChannel::getSocketOption(int level, int option, char* pw_dataptr, socklen_t& w_len, int& w_status)
 {
     w_status = ::getsockopt(m_iSocket, level, option, (pw_dataptr), (&w_len));

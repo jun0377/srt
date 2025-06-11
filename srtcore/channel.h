@@ -143,10 +143,13 @@ public:
     // 接收数据包
     EReadStatus recvfrom(sockaddr_any& addr, srt::CPacket& packet) const;
 
+    // 设置多路复用器参数
     void setConfig(const CSrtMuxerConfig& config);
 
+    // 获取系统套接字属性
     void getSocketOption(int level, int sockoptname, char* pw_dataptr, socklen_t& w_len, int& w_status);
 
+    // 模板函数，获取系统套接字属性的通用实现
     template<class Type>
     Type sockopt(int level, int sockoptname, Type deflt)
     {
@@ -192,6 +195,8 @@ private:
     // Mutable because when querying original settings
     // this comprises the cache for extracted values,
     // although the object itself isn't considered modified.
+
+    // 多路复用器
     mutable CSrtMuxerConfig m_mcfg; // Note: ReuseAddr is unused and ineffective.
     sockaddr_any            m_BindAddr;     // bind的本地地址
 

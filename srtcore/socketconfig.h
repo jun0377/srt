@@ -78,7 +78,8 @@ extern const int32_t SRT_DEF_VERSION;
 namespace srt
 {
 
-// UDP多路复用器配置
+// SRT多路复用器，一个UDP通告，可以给多路SRT流使用
+// 提供了一个兼容性检查接口，SRT流的UDP配置必须相同才可复用
 struct CSrtMuxerConfig
 {
     static const int DEF_UDP_BUFFER_SIZE = 65536;
@@ -98,6 +99,7 @@ struct CSrtMuxerConfig
     //  muxer_entry == socket_entry
 
     // 用于检查新连接的配置 与 现有多路复用器是否兼容
+    // 当新的SRT连接想要使用已存在的多路复用器时，会调用此函数进行检查
     bool isCompatWith(const CSrtMuxerConfig& other) const
     {
 #define CEQUAL(field) (field == other.field)

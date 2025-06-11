@@ -270,9 +270,9 @@ bool srt::CUDTUnited::startGarbageCollector()
     return m_bGCStatus;
 }
 
+// 停止资源回收线程
 void srt::CUDTUnited::stopGarbageCollector()
 {
-
     ScopedLock guard(m_GCStartLock);
     if (m_bGCStatus)
     {
